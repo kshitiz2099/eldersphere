@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElderSphere Voice Companion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .voice-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .record-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .record-button:active {
+            transform: scale(0.95);
+        }
+
+        .record-button.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .record-icon {
+            font-size: 3em;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            min-height: 60px;
+            color: #666;
+        }
+
+        .transcript {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+        }
+
+        .message.agent {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .message strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .voice-select {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            font-size: 1em;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .error {
+            color: #f44336;
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 8px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ ElderSphere Voice Companion</h1>
+        <p class="subtitle">Talk to your AI companion</p>
+
+        <div class="voice-controls">
+            <button id="recordButton" class="record-button">
+                <div class="record-icon">🎤</div>
+                <div id="buttonText">Press to Talk</div>
+            </button>
+
+            <select id="voiceSelect" class="voice-select">
+                <option value="21m00Tcm4TlvDq8ikWAM">Default Voice (Rachel)</option>
+            </select>
+        </div>
+
+        <div id="status" class="status"></div>
+        
+        <div id="transcript" class="transcript"></div>
+
+        <div class="info">
+            💡 <strong>Tip:</strong> Click and hold the microphone to record your message. Release to send it to your companion.
+            <br><br>
+            🔒 <strong>Browser Permissions:</strong> When you first click the microphone, your <u>browser</u> (Safari/Chrome/Firefox) will ask for microphone access. Click "Allow" in the browser popup.
+            <br><br>
+            ⚠️ <strong>If using Safari:</strong> Go to Safari → Settings → Websites → Microphone → Allow for localhost
+            <br>
+            ⚠️ <strong>If using Chrome:</strong> Click the 🔒 or ⓘ icon in the address bar → Site settings → Microphone → Allow
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const recordButton = document.getElementById('recordButton');
+        const buttonText = document.getElementById('buttonText');
+        const status = document.getElementById('status');
+        const transcript = document.getElementById('transcript');
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        // Use default voices without querying API (to avoid permission issues)
+        const defaultVoices = [
+            { voice_id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel - Calm" },
+            { voice_id: "AZnzlk1XvdvUeBnXmlld", name: "Domi - Strong" },
+            { voice_id: "EXAVITQu4vr4xnSDxMaL", name: "Bella - Soft" },
+            { voice_id: "ErXwobaYiN019PkySvjV", name: "Antoni - Well-rounded" },
+            { voice_id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli - Emotional" },
+            { voice_id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh - Deep" },
+            { voice_id: "VR6AewLTigWG4xSOukaG", name: "Arnold - Crisp" },
+            { voice_id: "pNInz6obpgDQGcFmaJgB", name: "Adam - Ground" },
+            { voice_id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam - Dynamic" }
+        ];
+
+        // Populate voice selector
+        voiceSelect.innerHTML = '';
+        defaultVoices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.voice_id;
+            option.textContent = voice.name;
+            voiceSelect.appendChild(option);
+        });
+
+        // Add message to transcript
+        function addMessage(role, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<strong>${role === 'user' ? 'You' : 'Companion'}:</strong>${text}`;
+            transcript.appendChild(messageDiv);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        // Set status
+        function setStatus(text, isError = false) {
+            status.innerHTML = isError ? `<div class="error">${text}</div>` : text;
+        }
+
+        // Start recording
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000  // Lower sample rate for better compatibility
+                    }
+                });
+                
+                // Determine best supported mime type - prefer formats ElevenLabs accepts
+                let mimeType = 'audio/webm';
+                let fileExtension = 'webm';
+                
+                // Try different formats in order of preference
+                if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mimeType = 'audio/mp4';
+                    fileExtension = 'mp4';
+                } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mimeType = 'audio/webm;codecs=opus';
+                    fileExtension = 'webm';
+                } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                    mimeType = 'audio/webm';
+                    fileExtension = 'webm';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                    mimeType = 'audio/ogg;codecs=opus';
+                    fileExtension = 'ogg';
+                }
+                
+                console.log('Recording with mimeType:', mimeType);
+                
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
+                });
+                
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
+                    await sendAudio(audioBlob, fileExtension);
+                    
+                    // Stop all tracks
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                recordButton.classList.add('recording');
+                buttonText.textContent = 'Recording...';
+                setStatus('🎤 Listening...');
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                let errorMessage = 'Error: Could not access microphone. ';
+                
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage += 'Please allow microphone access in your browser settings.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errorMessage += 'No microphone found. Please connect a microphone.';
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                    errorMessage += 'Microphone is already in use by another application.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred.';
+                }
+                
+                setStatus(errorMessage, true);
+            }
+        }
+
+        // Stop recording
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordButton.classList.remove('recording');
+                buttonText.textContent = 'Press to Talk';
+                setStatus('Processing... <span class="loading"></span>');
+            }
+        }
+
+        // Send audio to API
+        async function sendAudio(audioBlob, fileExtension) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, `recording.${fileExtension}`);
+                
+                setStatus('Sending to companion... <span class="loading"></span>');
+                
+                console.log('Sending audio blob:', {
+                    size: audioBlob.size,
+                    type: audioBlob.type,
+                    extension: fileExtension,
+                    voiceId: voiceSelect.value
+                });
+                
+                const response = await fetch(`${API_BASE}/voice-chat-with-audio?voice_id=${voiceSelect.value}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`Server error (${response.status}): ${errorText}`);
+                }
+                
+                // Get response text from header
+                const responseText = response.headers.get('X-Response-Text');
+                const userMessage = response.headers.get('X-User-Message');
+                
+                if (userMessage) {
+                    // Decode URL-encoded text
+                    const decodedUserMessage = decodeURIComponent(userMessage);
+                    addMessage('user', decodedUserMessage);
+                }
+                
+                if (responseText) {
+                    // Decode URL-encoded text
+                    const decodedResponseText = decodeURIComponent(responseText);
+                    addMessage('agent', decodedResponseText);
+                }
+                
+                // Play audio response
+                const audioData = await response.blob();
+                console.log('Received audio blob:', {
+                    size: audioData.size,
+                    type: audioData.type
+                });
+                
+                const audioUrl = URL.createObjectURL(audioData);
+                const audio = new Audio(audioUrl);
+                
+                setStatus('🔊 Playing response...');
+                
+                audio.onended = () => {
+                    setStatus('Ready to talk again');
+                    setTimeout(() => setStatus(''), 2000);
+                };
+                
+                audio.onerror = (e) => {
+                    console.error('Audio playback error:', e);
+                    setStatus('Error playing audio', true);
+                };
+                
+                await audio.play();
+                
+            } catch (error) {
+                console.error('Error sending audio:', error);
+                setStatus(`Error: ${error.message}`, true);
+            }
+        }
+
+        // Button event listeners
+        recordButton.addEventListener('mousedown', startRecording);
+        recordButton.addEventListener('mouseup', stopRecording);
+        recordButton.addEventListener('mouseleave', () => {
+            if (isRecording) stopRecording();
+        });
+
+        // Touch events for mobile
+        recordButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startRecording();
+        });
+        
+        recordButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopRecording();
+        });
+
+        // Initial greeting
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/greeting`);
+                const data = await response.json();
+                if (data.success) {
+                    addMessage('agent', data.greeting);
+                }
+            } catch (error) {
+                console.error('Error getting greeting:', error);
+            }
+        });
+    </script>
+</body>
+</html>

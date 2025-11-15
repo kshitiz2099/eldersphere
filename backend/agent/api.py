@@ -1,15 +1,18 @@
 """
 API wrapper for ElderSphere Agent.
-Provides a simple interface for frontend integration.
+Provides a simple interface for frontend integration with voice support.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from agent import ElderSphereAgent
 import os
 from dotenv import load_dotenv
+from elevenlabs import ElevenLabs
+from elevenlabs.client import ElevenLabs as ElevenLabsClient
 
 # Load environment variables
 load_dotenv()
@@ -32,6 +35,7 @@ app.add_middleware(
 
 # Initialize agent (singleton pattern)
 agent = None
+elevenlabs_client = None
 
 
 def get_agent():
@@ -40,6 +44,17 @@ def get_agent():
     if agent is None:
         agent = ElderSphereAgent()
     return agent
+
+
+def get_elevenlabs_client():
+    """Get or create the ElevenLabs client instance."""
+    global elevenlabs_client
+    if elevenlabs_client is None:
+        api_key = os.getenv('ELEVENLABS_API_KEY')
+        if not api_key:
+            raise ValueError("ELEVENLABS_API_KEY not found in environment variables")
+        elevenlabs_client = ElevenLabsClient(api_key=api_key)
+    return elevenlabs_client
 
 
 # Pydantic models for request/response validation
@@ -70,6 +85,12 @@ class GreetingResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     service: str
+
+
+class VoiceChatResponse(BaseModel):
+    response: str
+    success: bool
+    audio_available: bool
 
 
 @app.get('/health', response_model=HealthResponse)
@@ -187,6 +208,188 @@ async def get_greeting():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post('/voice-chat', response_model=VoiceChatResponse)
+async def voice_chat(audio: UploadFile = File(...)):
+    """
+    Voice chat endpoint.
+    
+    Upload an audio file, get transcription and agent's text response.
+    Use /voice-chat-audio for the audio response.
+    """
+    try:
+        # Read audio file
+        audio_bytes = await audio.read()
+        
+        # Transcribe audio using ElevenLabs
+        client = get_elevenlabs_client()
+        
+        # Use the correct parameter name: 'file' not 'audio'
+        result = client.speech_to_text.convert(
+            file=audio_bytes,
+            model_id="scribe_v1"
+        )
+        
+        # Extract text from result
+        user_message = result.text if hasattr(result, 'text') else str(result)
+        
+        if not user_message.strip():
+            raise HTTPException(status_code=400, detail='Could not transcribe audio')
+        
+        # Get agent response
+        agent_instance = get_agent()
+        response = agent_instance.chat(user_message)
+        
+        return {
+            'response': response,
+            'success': True,
+            'audio_available': True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Voice chat error: {str(e)}")
+
+
+@app.post('/voice-chat-with-audio')
+async def voice_chat_with_audio(audio: UploadFile = File(...), voice_id: Optional[str] = "21m00Tcm4TlvDq8ikWAM"):
+    """
+    Voice chat endpoint with audio response.
+    
+    Upload an audio file, get agent's response as audio.
+    Returns audio/mpeg stream.
+    """
+    try:
+        # Read audio file
+        audio_bytes = await audio.read()
+        
+        # Transcribe audio using ElevenLabs
+        client = get_elevenlabs_client()
+        
+        # Send audio directly to ElevenLabs (no conversion needed)
+        result = client.speech_to_text.convert(
+            file=audio_bytes,
+            model_id='scribe_v1',
+            file_format='other'  # Let ElevenLabs auto-detect the format
+        )
+        
+        # Extract text from result
+        user_message = result.text if hasattr(result, 'text') else str(result)
+        
+        if not user_message.strip():
+            raise HTTPException(status_code=400, detail='Could not transcribe audio')
+        
+        # Get agent response
+        agent_instance = get_agent()
+        response_text = agent_instance.chat(user_message)
+        
+        # Convert response to speech
+        audio_response = client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=response_text,
+            model_id="eleven_multilingual_v2"
+        )
+        
+        # Stream audio response
+        def audio_stream():
+            for chunk in audio_response:
+                yield chunk
+        
+        # Encode header values to handle special characters
+        # HTTP headers must be Latin-1, so we use URL encoding for Unicode text
+        import urllib.parse
+        encoded_response_text = urllib.parse.quote(response_text)
+        encoded_user_message = urllib.parse.quote(user_message)
+        
+        return StreamingResponse(
+            audio_stream(),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "attachment; filename=response.mp3",
+                "X-Response-Text": encoded_response_text,
+                "X-User-Message": encoded_user_message
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Voice chat with audio error: {str(e)}")
+
+
+@app.post('/text-to-speech')
+async def text_to_speech(request: ChatRequest, voice_id: Optional[str] = "21m00Tcm4TlvDq8ikWAM"):
+    """
+    Convert text to speech.
+    
+    Converts the provided text to speech audio using ElevenLabs.
+    """
+    try:
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail='Message cannot be empty')
+        
+        client = get_elevenlabs_client()
+        
+        # Convert text to speech
+        audio_response = client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=request.message,
+            model_id="eleven_multilingual_v2"
+        )
+        
+        # Stream audio response
+        def audio_stream():
+            for chunk in audio_response:
+                yield chunk
+        
+        return StreamingResponse(
+            audio_stream(),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "attachment; filename=speech.mp3"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get('/voices')
+async def get_voices():
+    """
+    Get available ElevenLabs voices.
+    
+    Returns a list of available voice IDs and names.
+    """
+    try:
+        client = get_elevenlabs_client()
+        voices = client.voices.get_all()
+        
+        voice_list = [
+            {
+                "voice_id": voice.voice_id,
+                "name": voice.name,
+                "category": voice.category if hasattr(voice, 'category') else None,
+                "description": voice.description if hasattr(voice, 'description') else None
+            }
+            for voice in voices.voices
+        ]
+        
+        return {
+            'voices': voice_list,
+            'success': True
+        }
+        
+    except Exception as e:
+        # Fallback to hardcoded voices if API fails
+        hardcoded_voices = [
+            {"voice_id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel", "description": "Calm, balanced"},
+            {"voice_id": "AZnzlk1XvdvUeBnXmlld", "name": "Domi", "description": "Strong, confident"},
+            {"voice_id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah", "description": "Soft, gentle"},
+            {"voice_id": "ErXwobaYiN019PkySvjV", "name": "Antoni", "description": "Well-rounded"},
+        ]
+        
+        return {
+            'voices': hardcoded_voices,
+            'success': True,
+            'note': f'Using fallback voices: {str(e)}'
+        }
+
+
 if __name__ == '__main__':
     import uvicorn
     
@@ -201,7 +404,11 @@ if __name__ == '__main__':
     print("Server running on http://localhost:8000")
     print("\nAvailable endpoints:")
     print("  GET  /health - Health check")
-    print("  POST /chat - Send a message")
+    print("  POST /chat - Send a message (text)")
+    print("  POST /voice-chat - Send audio, get text response")
+    print("  POST /voice-chat-with-audio - Send audio, get audio response")
+    print("  POST /text-to-speech - Convert text to speech")
+    print("  GET  /voices - Get available ElevenLabs voices")
     print("  GET  /personality - Get personality profile")
     print("  POST /reset - Reset conversation")
     print("  POST /reset-all - Reset everything")
