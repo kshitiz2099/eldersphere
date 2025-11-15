@@ -1,10 +1,12 @@
+import { ReactNode } from 'react';
+
 interface ButtonProps {
-  children: React.ReactNode;
+  children?: ReactNode;
   onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'gentle' | 'emergency';
   size?: 'large' | 'extra-large';
   fullWidth?: boolean;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   disabled?: boolean;
 }
 

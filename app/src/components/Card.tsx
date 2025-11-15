@@ -1,5 +1,7 @@
+import { ReactNode } from 'react';
+
 interface CardProps {
-  children: React.ReactNode;
+  children?: ReactNode;
   onClick?: () => void;
   className?: string;
   variant?: 'default' | 'soft' | 'highlight';
