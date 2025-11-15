@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigation } from './components/Navigation';
 import { HomePage } from './pages/HomePage';
 import { GroundingPage } from './pages/GroundingPage';
@@ -11,8 +11,10 @@ import { FamilyViewPage } from './pages/FamilyViewPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { PersonasPage } from './pages/PersonasPage';
 import { AppStoreProvider } from './store/appStore';
-import { Menu } from 'lucide-react';
+import { Menu, Mic, MicOff } from 'lucide-react';
 import { Card } from './components/Card';
+import { VoiceServiceTest } from './services/voiceServiceTest';
+import { Button } from './components/Button';
 
 type Page = 'onboarding' | 'home' | 'grounding' | 'chat' | 'memory' | 'community' | 'safety' | 'settings' | 'family' | 'personas';
 
@@ -20,6 +22,8 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('onboarding');
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>();
+  const [testService] = useState(() => new VoiceServiceTest());
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleNavigate = (page: string, ...args: any[]) => {
     setCurrentPage(page as Page);
@@ -41,10 +45,7 @@ export default function App() {
   const ModeSelector = () => {
     if (!showModeSelector) {
       return (
-        <button
-          onClick={() => setShowModeSelector(true)}
-          className="fixed top-4 right-4 z-50 bg-white p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all"
-        >
+        <button onClick={() => setShowModeSelector(true)} className="fixed top-4 right-4 z-50 bg-white p-3 rounded-2xl shadow-lg hover:shadow-xl transition-all">
           <Menu size={24} className="text-[#7FA5B8]" />
         </button>
       );
@@ -115,28 +116,61 @@ export default function App() {
     );
   };
 
-  const appContent = (
-    <div className="relative">
-      <ModeSelector />
-      
-      {currentPage === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} />}
-      {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
-      {currentPage === 'grounding' && <GroundingPage onNavigate={handleNavigate} />}
-      {currentPage === 'chat' && <ChatPage onNavigate={handleNavigate} initialMessage={chatInitialMessage} />}
-      {currentPage === 'memory' && <MemoryPage onNavigate={handleNavigate} />}
-      {currentPage === 'community' && <CommunityPage onNavigate={handleNavigate} />}
-      {currentPage === 'safety' && <SafetyPage onNavigate={handleNavigate} />}
-      {currentPage === 'settings' && <SettingsPage onNavigate={handleNavigate} />}
-      {currentPage === 'family' && <FamilyViewPage onNavigate={handleNavigate} />}
-      {currentPage === 'personas' && <PersonasPage />}
+  const handleAudioTest = async () => {
+    if (isPlaying) {
+      testService.stop();
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      await testService.testStreamingAudio();
+      setIsPlaying(false);
+    }
+  };
 
-      {currentPage !== 'onboarding' && currentPage !== 'personas' && (
-        <Navigation 
-          currentPage={currentPage} 
-          onNavigate={handleNavigate} 
-        />
-      )}
+  const appContent = (
+    <div className="p-8">
+      <Button onClick={handleAudioTest}>
+        {isPlaying ? 'Stop Audio' : 'Test Streaming Audio'}
+      </Button>
     </div>
+    // <div className="relative">
+    //   {/* <ModeSelector /> */}
+      
+    //   {/* Voice Test Button */}
+    //   <button
+    //     onClick={handleVoiceTest}
+    //     className={`fixed bottom-24 right-4 z-50 p-4 rounded-full shadow-lg transition-all ${
+    //       isRecording 
+    //         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+    //         : 'bg-[#7FA5B8] hover:bg-[#6B8FA0]'
+    //     }`}
+    //     title={isRecording ? 'Stop Recording' : 'Start Voice Test'}
+    //   >
+    //     {isRecording ? (
+    //       <MicOff size={24} className="text-white" />
+    //     ) : (
+    //       <Mic size={24} className="text-white" />
+    //     )}
+    //   </button>
+      
+      // {/* {currentPage === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} />}
+      // {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
+      // {currentPage === 'grounding' && <GroundingPage onNavigate={handleNavigate} />}
+      // {currentPage === 'chat' && <ChatPage onNavigate={handleNavigate} initialMessage={chatInitialMessage} />}
+      // {currentPage === 'memory' && <MemoryPage onNavigate={handleNavigate} />}
+      // {currentPage === 'community' && <CommunityPage onNavigate={handleNavigate} />}
+      // {currentPage === 'safety' && <SafetyPage onNavigate={handleNavigate} />}
+      // {currentPage === 'settings' && <SettingsPage onNavigate={handleNavigate} />}
+      // {currentPage === 'family' && <FamilyViewPage onNavigate={handleNavigate} />}
+      // {currentPage === 'personas' && <PersonasPage />}
+
+      // {currentPage !== 'onboarding' && currentPage !== 'personas' && (
+      //   <Navigation 
+      //     currentPage={currentPage} 
+      //     onNavigate={handleNavigate} 
+      //   />
+      // )} */}
+    // </div>
   );
 
   return (
