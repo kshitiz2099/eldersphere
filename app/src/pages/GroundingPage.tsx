@@ -1,24 +1,29 @@
 import { MapPin, Calendar, Users, MessageCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { useAppStore } from '../store/appStore';
 
 interface GroundingPageProps {
-  onNavigate: (page: string) => void;
-  userName?: string;
-  location?: string;
+  onNavigate: (page: string, ...args: any[]) => void;
 }
 
-export function GroundingPage({ 
-  onNavigate, 
-  userName = "Mari",
-  location = "home in Espoo" 
-}: GroundingPageProps) {
+export function GroundingPage({ onNavigate }: GroundingPageProps) {
+  const { userProfile, memories } = useAppStore();
+  
+  const userName = userProfile?.preferredName || userProfile?.name || "there";
+  const location = userProfile?.city 
+    ? `home in ${userProfile.city}` 
+    : "your home";
+  
   const today = new Date();
   const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
   const timeOfDay = today.getHours() < 12 ? 'morning' : today.getHours() < 18 ? 'afternoon' : 'evening';
   const month = today.toLocaleDateString('en-US', { month: 'long' });
   const day = today.getDate();
   const year = today.getFullYear();
+  
+  // Get people from memories
+  const people = memories.filter(m => m.type === 'person').slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#A7BFA7]/10 to-[#7FA5B8]/10 pb-32">
@@ -69,9 +74,18 @@ export function GroundingPage({
               </div>
               <div>
                 <h2 className="mb-2 text-2xl">People who care about you</h2>
-                <p className="text-xl text-[#5B4B43]">Anna visits most weekends</p>
-                <p className="text-xl text-[#5B4B43]">Your neighbor Kari checks in regularly</p>
-                <p className="text-xl text-[#5B4B43]">I'm always here to talk with you</p>
+                {people.length > 0 ? (
+                  <>
+                    {people.map((person, index) => (
+                      <p key={person.id} className="text-xl text-[#5B4B43]">
+                        {person.title}{person.description ? ` - ${person.description}` : ''}
+                      </p>
+                    ))}
+                    <p className="text-xl text-[#5B4B43] mt-2">I'm always here to talk with you</p>
+                  </>
+                ) : (
+                  <p className="text-xl text-[#5B4B43]">I'm always here to talk with you</p>
+                )}
               </div>
             </div>
           </Card>
@@ -84,9 +98,13 @@ export function GroundingPage({
             size="extra-large" 
             fullWidth
             icon={<MessageCircle />}
-            onClick={() => onNavigate('chat')}
+            onClick={() => {
+              // Navigate to chat with a pre-seeded message
+              // We'll need to update App.tsx to handle this
+              onNavigate('chat', 'I feel confused');
+            }}
           >
-            Talk to me
+            Talk to Eldermama
           </Button>
           
           <Button 

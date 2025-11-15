@@ -3,12 +3,14 @@ import { Mic, Heart, ChevronRight, Check } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { VoiceWaveform } from '../components/VoiceWaveform';
+import { useAppStore } from '../store/appStore';
 
 interface OnboardingPageProps {
   onComplete: () => void;
 }
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
+  const { setUserProfile } = useAppStore();
   const [step, setStep] = useState(0);
   const [userName, setUserName] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -216,6 +218,16 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
     if (step < steps.length - 1) {
       setStep(step + 1);
     } else {
+      // Save user profile when completing onboarding
+      if (userName) {
+        setUserProfile({
+          id: Date.now().toString(),
+          name: userName,
+          preferredName: userName,
+          city: 'Espoo', // Default, can be updated in settings
+          country: 'Finland',
+        });
+      }
       onComplete();
     }
   };

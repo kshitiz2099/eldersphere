@@ -1,11 +1,15 @@
-import { useState } from 'react';
-import { Mic, MicOff, Phone, Calendar, MapPin, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mic, MicOff, Phone, Calendar, MapPin, Users, Send } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { VoiceWaveform } from '../components/VoiceWaveform';
+import { useAppStore } from '../store/appStore';
+import { callAssistant } from '../lib/aiClient';
+import { buildGroundingPrompt } from '../lib/grounding';
 
 interface ChatPageProps {
   onNavigate: (page: string) => void;
+  initialMessage?: string; // For pre-seeded messages (e.g., from GroundingPage)
 }
 
 interface Message {
@@ -15,7 +19,8 @@ interface Message {
   timestamp: Date;
 }
 
-export function ChatPage({ onNavigate }: ChatPageProps) {
+export function ChatPage({ onNavigate, initialMessage }: ChatPageProps) {
+  const { userProfile, memories } = useAppStore();
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -25,6 +30,16 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
       timestamp: new Date()
     }
   ]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [inputText, setInputText] = useState('');
+
+  // Handle initial message if provided
+  useEffect(() => {
+    if (initialMessage && messages.length === 1) {
+      handleSendMessage(initialMessage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const quickActions = [
     { icon: Phone, label: 'Call family', color: '#C17B6C' },
@@ -33,25 +48,59 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     { icon: Users, label: 'Find event', color: '#D99B5E' },
   ];
 
-  const handleQuickAction = (label: string) => {
-    const newMessage: Message = {
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isProcessing) return;
+
+    // Add user message
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: label,
+      text: text.trim(),
       sender: 'user',
       timestamp: new Date()
     };
-    setMessages([...messages, newMessage]);
+    setMessages(prev => [...prev, userMessage]);
+    setIsProcessing(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Build grounding prompt with user context
+      const groundingPrompt = buildGroundingPrompt({
+        user: userProfile,
+        memories: memories,
+      });
+
+      // Combine grounding prompt with user message
+      const fullPrompt = `${groundingPrompt}\n\nUser says: ${text.trim()}`;
+
+      // Call AI assistant
+      const aiResponse = await callAssistant(fullPrompt, {
+        userProfile: userProfile || undefined,
+        memories: memories,
+      });
+
+      // Add AI response
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `I'll help you with "${label}". Let me gather that information for you.`,
+        text: aiResponse,
         sender: 'ai',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
-    }, 1000);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm sorry, I'm having trouble right now. Please try again in a moment.",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleQuickAction = (label: string) => {
+    handleSendMessage(label);
   };
 
   return (
@@ -71,10 +120,23 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
               variant={isListening ? 'emergency' : 'primary'}
               size="extra-large"
               icon={isListening ? <MicOff /> : <Mic />}
-              onClick={() => setIsListening(!isListening)}
+              onClick={() => {
+                if (isListening) {
+                  setIsListening(false);
+                  // In a real app, this would process the recorded audio
+                  // For now, we'll just show a placeholder
+                } else {
+                  setIsListening(true);
+                  // In a real app, this would start recording
+                }
+              }}
+              disabled={isProcessing}
             >
               {isListening ? 'Stop listening' : 'Start speaking'}
             </Button>
+            {isProcessing && (
+              <p className="text-lg text-[#5B4B43] mt-3">Eldermama is thinking...</p>
+            )}
           </div>
         </Card>
 
@@ -136,10 +198,47 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
           </div>
         </div>
 
+        {/* Text Input */}
+        <Card variant="default" className="mt-6">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (inputText.trim()) {
+                    handleSendMessage(inputText);
+                    setInputText('');
+                  }
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1 text-xl p-4 bg-transparent border-none outline-none"
+              disabled={isProcessing}
+            />
+            <Button
+              variant="primary"
+              size="large"
+              icon={<Send />}
+              onClick={() => {
+                if (inputText.trim()) {
+                  handleSendMessage(inputText);
+                  setInputText('');
+                }
+              }}
+              disabled={isProcessing || !inputText.trim()}
+            >
+              Send
+            </Button>
+          </div>
+        </Card>
+
         {/* Helper Text */}
         <Card variant="soft" className="mt-6 text-center">
           <p className="text-lg text-[#5B4B43]">
-            Speak naturally - I'm here to listen and help
+            Speak naturally or type - I'm here to listen and help
           </p>
         </Card>
       </div>

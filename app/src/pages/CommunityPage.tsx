@@ -1,86 +1,89 @@
 import { useState } from 'react';
-import { Calendar, MapPin, Users, Clock, Heart } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, Heart, Sparkles } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { useAppStore } from '../store/appStore';
+import { callAssistant } from '../lib/aiClient';
+import type { CommunityEvent } from '../types';
 
 interface CommunityPageProps {
   onNavigate: (page: string) => void;
 }
 
-type TimeFilter = 'today' | 'week' | 'nearby';
+type FeelingFilter = 'calm' | 'social' | 'active' | null;
+type CategoryFilter = 'social' | 'movement' | 'creative' | 'quiet' | 'all';
 
 export function CommunityPage({ onNavigate }: CommunityPageProps) {
-  const [activeFilter, setActiveFilter] = useState<TimeFilter>('week');
+  const { communityEvents, userProfile } = useAppStore();
+  const [feelingFilter, setFeelingFilter] = useState<FeelingFilter>(null);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [preparingForEvent, setPreparingForEvent] = useState<string | null>(null);
 
-  const events = [
-    {
-      id: '1',
-      title: 'Library Book Club',
-      location: 'Espoo Central Library',
-      date: 'Thursday, 2:00 PM',
-      category: 'Reading',
-      description: 'Monthly book discussion and coffee',
-      imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66',
-      spots: 8,
-    },
-    {
-      id: '2',
-      title: 'Morning Walking Group',
-      location: 'Central Park',
-      date: 'Saturday, 9:00 AM',
-      category: 'Exercise',
-      description: 'Gentle walk and social time',
-      imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b',
-      spots: 12,
-    },
-    {
-      id: '3',
-      title: 'Community Lunch',
-      location: 'Community Center',
-      date: 'Friday, 12:00 PM',
-      category: 'Social',
-      description: 'Shared meal and conversation',
-      imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1',
-      spots: 20,
-    },
-    {
-      id: '4',
-      title: 'Arts & Crafts Circle',
-      location: 'Senior Center',
-      date: 'Tuesday, 3:00 PM',
-      category: 'Creative',
-      description: 'Painting, knitting, and creative projects',
-      imageUrl: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b',
-      spots: 10,
-    },
-    {
-      id: '5',
-      title: 'Garden Club Meeting',
-      location: 'Botanical Gardens',
-      date: 'Wednesday, 10:00 AM',
-      category: 'Nature',
-      description: 'Share gardening tips and stories',
-      imageUrl: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b',
-      spots: 15,
-    },
-    {
-      id: '6',
-      title: 'Coffee & Conversation',
-      location: 'Cafe Cultura',
-      date: 'Every Monday, 11:00 AM',
-      category: 'Social',
-      description: 'Casual meetup for friendly chat',
-      imageUrl: 'https://images.unsplash.com/photo-1511920170033-f8396924c348',
-      spots: 6,
-    },
+  const feelings = [
+    { id: 'calm' as FeelingFilter, label: 'Calm and quiet', emoji: '🧘' },
+    { id: 'social' as FeelingFilter, label: 'A little social', emoji: '👥' },
+    { id: 'active' as FeelingFilter, label: 'Active and moving', emoji: '🚶' },
   ];
 
-  const filters = [
-    { id: 'today' as TimeFilter, label: 'Today' },
-    { id: 'week' as TimeFilter, label: 'This week' },
-    { id: 'nearby' as TimeFilter, label: 'Nearby' },
+  const categories = [
+    { id: 'all' as CategoryFilter, label: 'All' },
+    { id: 'social' as CategoryFilter, label: 'Social' },
+    { id: 'movement' as CategoryFilter, label: 'Movement' },
+    { id: 'creative' as CategoryFilter, label: 'Creative' },
+    { id: 'quiet' as CategoryFilter, label: 'Quiet' },
   ];
+
+  // Filter events
+  let filteredEvents = [...communityEvents];
+
+  // Apply category filter
+  if (categoryFilter !== 'all') {
+    filteredEvents = filteredEvents.filter(e => e.category === categoryFilter);
+  }
+
+  // Apply feeling filter with recommendation logic
+  if (feelingFilter) {
+    filteredEvents = filteredEvents.map(event => ({
+      ...event,
+      isRecommended: getRecommendationScore(event, feelingFilter, userProfile) > 0.5,
+    })).sort((a, b) => {
+      // Sort recommended events first
+      if (a.isRecommended && !b.isRecommended) return -1;
+      if (!a.isRecommended && b.isRecommended) return 1;
+      return 0;
+    });
+  }
+
+  const handlePrepare = async (event: CommunityEvent) => {
+    setPreparingForEvent(event.id);
+    try {
+      const prompt = `The user is preparing to attend this event: "${event.title}" - ${event.description}. Location: ${event.location}. Category: ${event.category}. Generate a gentle, reassuring preparation message (2-3 sentences) that helps them feel ready. Include practical tips like what to wear or bring, and reassure them that they can leave whenever they like.`;
+      
+      const response = await callAssistant(prompt, {
+        userProfile: userProfile || undefined,
+      });
+
+      alert(`Eldermama says:\n\n${response}`);
+    } catch (error) {
+      console.error('Error preparing:', error);
+      alert("I'm having trouble right now. The event looks great though!");
+    } finally {
+      setPreparingForEvent(null);
+    }
+  };
+
+  const getCategoryColor = (category: CommunityEvent['category']) => {
+    switch (category) {
+      case 'social':
+        return '#C17B6C';
+      case 'movement':
+        return '#A7BFA7';
+      case 'creative':
+        return '#7FA5B8';
+      case 'quiet':
+        return '#D99B5E';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAF7F2] to-[#E8DFD4] pb-32">
@@ -93,23 +96,46 @@ export function CommunityPage({ onNavigate }: CommunityPageProps) {
           </p>
         </div>
 
-        {/* Filters */}
+        {/* Feeling Filter */}
         <div className="mb-6">
+          <h3 className="mb-4 text-2xl">How would you like to feel today?</h3>
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {filters.map((filter) => {
-              const isActive = activeFilter === filter.id;
-              
+            {feelings.map((feeling) => {
+              const isActive = feelingFilter === feeling.id;
               return (
                 <button
-                  key={filter.id}
-                  onClick={() => setActiveFilter(filter.id)}
+                  key={feeling.id}
+                  onClick={() => setFeelingFilter(isActive ? null : feeling.id)}
+                  className={`flex items-center gap-2 px-6 py-4 rounded-2xl transition-all shrink-0 text-lg ${
+                    isActive
+                      ? 'bg-[#7FA5B8] text-white shadow-md'
+                      : 'bg-white text-[#5B4B43] hover:bg-[#E8DFD4]'
+                  }`}
+                >
+                  <span className="text-2xl">{feeling.emoji}</span>
+                  <span>{feeling.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Category Filter */}
+        <div className="mb-6">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {categories.map((category) => {
+              const isActive = categoryFilter === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => setCategoryFilter(category.id)}
                   className={`px-6 py-3 rounded-2xl transition-all text-lg shrink-0 ${
                     isActive
                       ? 'bg-[#7FA5B8] text-white shadow-md'
                       : 'bg-white text-[#5B4B43] hover:bg-[#E8DFD4]'
                   }`}
                 >
-                  {filter.label}
+                  {category.label}
                 </button>
               );
             })}
@@ -125,61 +151,166 @@ export function CommunityPage({ onNavigate }: CommunityPageProps) {
 
         {/* Event Cards */}
         <div className="space-y-5">
-          {events.map((event) => (
-            <Card 
-              key={event.id}
-              variant="default"
-              className="overflow-hidden"
-            >
-              {/* Image */}
-              <div className="aspect-video rounded-xl overflow-hidden mb-4">
-                <ImageWithFallback
-                  src={event.imageUrl}
-                  alt={event.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+          {filteredEvents.map((event) => {
+            const categoryColor = getCategoryColor(event.category);
+            const isRecommended = 'isRecommended' in event && event.isRecommended;
 
-              {/* Content */}
-              <div>
-                <div className="mb-4">
-                  <div className="inline-block bg-[#A7BFA7] text-white px-4 py-1 rounded-full text-base mb-3">
-                    {event.category}
+            return (
+              <Card
+                key={event.id}
+                variant="default"
+                className={`overflow-hidden ${isRecommended ? 'border-4 border-[#A7BFA7]' : ''}`}
+              >
+                {/* Recommended Badge */}
+                {isRecommended && (
+                  <div className="bg-[#A7BFA7] text-white px-4 py-2 text-center text-lg font-semibold mb-4">
+                    ✨ Recommended for you
                   </div>
-                  <h3 className="mb-2 text-2xl">{event.title}</h3>
-                  <p className="text-xl text-[#5B4B43] mb-4">
-                    {event.description}
-                  </p>
-                </div>
+                )}
 
-                <div className="space-y-2 mb-5">
-                  <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
-                    <Calendar size={24} className="text-[#7FA5B8] shrink-0" />
-                    <span>{event.date}</span>
+                {/* Content */}
+                <div>
+                  <div className="mb-4">
+                    <div
+                      className="inline-block text-white px-4 py-1 rounded-full text-base mb-3"
+                      style={{ backgroundColor: categoryColor }}
+                    >
+                      {event.category}
+                    </div>
+                    <h3 className="mb-2 text-2xl">{event.title}</h3>
+                    <p className="text-xl text-[#5B4B43] mb-4">
+                      {event.description}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
-                    <MapPin size={24} className="text-[#7FA5B8] shrink-0" />
-                    <span>{event.location}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
-                    <Users size={24} className="text-[#7FA5B8] shrink-0" />
-                    <span>{event.spots} people interested</span>
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  <Button variant="primary" size="large" fullWidth>
-                    Join activity
-                  </Button>
-                  <Button variant="gentle" size="large" fullWidth>
-                    Get details
-                  </Button>
+                  <div className="space-y-2 mb-5">
+                    <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
+                      <Calendar size={24} className="text-[#7FA5B8] shrink-0" />
+                      <span>
+                        {new Date(event.startsAt).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
+                      <MapPin size={24} className="text-[#7FA5B8] shrink-0" />
+                      <span>{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-lg text-[#5B4B43]">
+                      <Clock size={24} className="text-[#7FA5B8] shrink-0" />
+                      <span>
+                        {event.distanceMinutes} minutes away
+                        {event.isFree ? ' • Free' : ' • Low cost'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Button
+                      variant="primary"
+                      size="large"
+                      fullWidth
+                      onClick={() => {
+                        // In a real app, this would join/RSVP
+                        alert(`You've joined "${event.title}"! We'll remind you before it starts.`);
+                      }}
+                    >
+                      Join activity
+                    </Button>
+                    <Button
+                      variant="gentle"
+                      size="large"
+                      fullWidth
+                      icon={<Sparkles />}
+                      onClick={() => handlePrepare(event)}
+                      disabled={preparingForEvent === event.id}
+                    >
+                      {preparingForEvent === event.id
+                        ? 'Preparing...'
+                        : 'Help me prepare'}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
+
+        {/* Empty State */}
+        {filteredEvents.length === 0 && (
+          <Card variant="soft" className="text-center py-16">
+            <Calendar className="mx-auto mb-4 text-[#7FA5B8]" size={64} />
+            <h3 className="mb-3 text-2xl">No activities match your filters</h3>
+            <p className="text-xl text-[#5B4B43] mb-6">
+              Try adjusting your preferences
+            </p>
+            <Button
+              variant="primary"
+              size="large"
+              onClick={() => {
+                setFeelingFilter(null);
+                setCategoryFilter('all');
+              }}
+            >
+              Clear filters
+            </Button>
+          </Card>
+        )}
       </div>
     </div>
   );
+}
+
+/**
+ * Calculate recommendation score based on feeling filter and user profile
+ */
+function getRecommendationScore(
+  event: CommunityEvent,
+  feeling: FeelingFilter,
+  userProfile: any
+): number {
+  if (!feeling) return 0;
+
+  let score = 0;
+
+  // Match feeling to event category
+  if (feeling === 'calm' && event.category === 'quiet') {
+    score += 0.8;
+  } else if (feeling === 'social' && event.category === 'social') {
+    score += 0.8;
+  } else if (feeling === 'active' && event.category === 'movement') {
+    score += 0.8;
+  }
+
+  // Consider user profile preferences
+  if (userProfile) {
+    // Introverts might prefer quiet activities
+    if (userProfile.introvertExtrovert === 'introvert' && event.category === 'quiet') {
+      score += 0.3;
+    }
+    // Extroverts might prefer social activities
+    if (userProfile.introvertExtrovert === 'extrovert' && event.category === 'social') {
+      score += 0.3;
+    }
+    // Mobility level affects movement activities
+    if (userProfile.mobilityLevel === 'low' && event.category === 'movement') {
+      score -= 0.3;
+    }
+  }
+
+  // Prefer nearby events
+  if (event.distanceMinutes < 15) {
+    score += 0.2;
+  }
+
+  // Prefer free events
+  if (event.isFree) {
+    score += 0.1;
+  }
+
+  return Math.min(score, 1.0);
 }
