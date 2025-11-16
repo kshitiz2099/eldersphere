@@ -209,7 +209,7 @@ const Companion = () => {
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
           
           // If actual speech detected (higher threshold to ignore background noise)
-          if (average > 60 && mediaRecorder.state === 'recording') {
+          if (average > 30 && mediaRecorder.state === 'recording') {
             hasSpoken = true;
             // Clear existing timer and start a new one
             if (silenceTimerRef.current) {

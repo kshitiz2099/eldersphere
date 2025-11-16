@@ -402,10 +402,15 @@ async def voice_chat_with_audio_ws(websocket: WebSocket):
             # Send text response to client
             await websocket.send_json({"type": "response", "text": response_text})
             
+            # Remove stage directions (text in parentheses) for TTS
+            import re
+            tts_text = re.sub(r'\([^)]*\)', '', response_text).strip()
+            tts_text = re.sub(r'\s+', ' ', tts_text)  # Clean up extra spaces
+            
             # Convert response to speech with style interpretation
             audio_response = client.text_to_speech.convert(
                 voice_id="21m00Tcm4TlvDq8ikWAM",
-                text=response_text,
+                text=tts_text,
                 model_id="eleven_turbo_v2_5",
                 voice_settings={
                     "stability": 0.5,
