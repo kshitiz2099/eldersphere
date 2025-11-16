@@ -357,25 +357,29 @@ async def voice_chat(audio: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Voice chat error: {str(e)}")
 
 
-@app.post('/voice-chat-with-audio')
-async def voice_chat_with_audio(audio: UploadFile = File(...), voice_id: Optional[str] = "21m00Tcm4TlvDq8ikWAM"):
+@app.websocket("/ws/voice-chat-with-audio")
+async def voice_chat_with_audio_ws(websocket: WebSocket):
     """
-    Voice chat endpoint with audio response.
+    WebSocket voice chat endpoint with audio response.
     
-    Upload an audio file, get agent's response as audio.
-    Returns audio/mpeg stream.
+    Client sends audio bytes, receives transcription, text response, and audio response.
+    Connection opens and closes based on client requests.
     """
+    await websocket.accept()
+    
     try:
-        # Read audio file
-        audio_bytes = await audio.read()
-        print(f"[DEBUG] /voice-chat-with-audio received audio bytes length: {len(audio_bytes)}")
+        # Receive audio bytes from client
+        audio_bytes = await websocket.receive_bytes()
+        print(f"[DEBUG] WebSocket received audio bytes length: {len(audio_bytes)}")
+        
         if not audio_bytes:
-            raise HTTPException(status_code=400, detail="Uploaded audio file is empty. Check client recording settings and mime type.")
+            await websocket.send_json({"type": "error", "message": "No audio data received"})
+            await websocket.close()
+            return
         
         # Transcribe audio using ElevenLabs
         client = get_elevenlabs_client()
         
-        # Send audio directly to ElevenLabs (no conversion needed)
         result = client.speech_to_text.convert(
             file=audio_bytes,
             model_id='scribe_v1',
@@ -386,43 +390,46 @@ async def voice_chat_with_audio(audio: UploadFile = File(...), voice_id: Optiona
         user_message = result.text if hasattr(result, 'text') else str(result)
         
         if not user_message.strip():
-            raise HTTPException(status_code=400, detail='Could not transcribe audio')
+            await websocket.send_json({"type": "error", "message": "Could not transcribe audio"})
+            await websocket.close()
+            return
+        
+        # Send transcription to client
+        await websocket.send_json({"type": "transcription", "text": user_message})
         
         # Get agent response
         agent_instance = get_agent()
         response_text = agent_instance.chat(user_message)
         
+        # Send text response to client
+        await websocket.send_json({"type": "response", "text": response_text})
+        
         # Convert response to speech
         audio_response = client.text_to_speech.convert(
-            voice_id=voice_id,
+            voice_id="21m00Tcm4TlvDq8ikWAM",
             text=response_text,
             model_id="eleven_multilingual_v2"
         )
         
-        # Stream audio response
-        def audio_stream():
-            for chunk in audio_response:
-                yield chunk
+        # Stream audio response to client
+        for chunk in audio_response:
+            if chunk:
+                await websocket.send_bytes(chunk)
         
-        # Encode header values to handle special characters
-        # HTTP headers must be Latin-1, so we use URL encoding for Unicode text
-        import urllib.parse
-        encoded_response_text = urllib.parse.quote(response_text)
-        encoded_user_message = urllib.parse.quote(user_message)
+        # Send completion signal
+        await websocket.send_json({"type": "complete"})
+        await websocket.close()
         
-        return StreamingResponse(
-            audio_stream(),
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "attachment; filename=response.mp3",
-                "X-Response-Text": encoded_response_text,
-                "X-User-Message": encoded_user_message
-            }
-        )
+    except WebSocketDisconnect:
+        print("[DEBUG] WebSocket disconnected")
     except Exception as e:
-        print("[ERROR] Exception in /voice-chat-with-audio:")
+        print("[ERROR] Exception in WebSocket voice-chat-with-audio:")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Voice chat with audio error: {str(e)}")
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.close()
+        except:
+            pass
 
 
 @app.post('/text-to-speech')
