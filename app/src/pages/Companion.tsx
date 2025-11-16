@@ -14,6 +14,7 @@ const Companion = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,9 +61,12 @@ const Companion = () => {
     setInput(action);
   };
 
-  const handleMic = () => {
+  const handleMic = async () => {
     if (isRecording) {
-      // Stop recording and close WebSocket
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
       if (ws) {
         ws.close();
         setWs(null);
@@ -70,29 +74,49 @@ const Companion = () => {
       setIsRecording(false);
     } else {
       // Start recording and connect to WebSocket
-      const websocket = new WebSocket('ws://localhost:8000/ws/voice');
-      
-      websocket.onopen = () => {
-        console.log('WebSocket connected');
-        setIsRecording(true);
-      };
-      
-      websocket.onmessage = (event) => {
-        console.log('Received from server:', event.data);
-        // TODO: Handle incoming audio/text from server
-      };
-      
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const websocket = new WebSocket('ws://localhost:8000/ws/voice');
+        
+        websocket.onopen = () => {
+          console.log('WebSocket connected');
+          setIsRecording(true);
+          
+          // Start recording audio
+          const mediaRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
+              websocket.send(event.data);
+            }
+          };
+          
+          mediaRecorder.start(100); // Send data every 100ms
+        };
+        
+        websocket.onmessage = (event) => {
+          console.log('Received from server:', event.data);
+          // TODO: Handle incoming audio/text from server
+        };
+        
+        websocket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          setIsRecording(false);
+          stream.getTracks().forEach(track => track.stop());
+        };
+        
+        websocket.onclose = () => {
+          console.log('WebSocket disconnected');
+          setIsRecording(false);
+          stream.getTracks().forEach(track => track.stop());
+        };
+        
+        setWs(websocket);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
         setIsRecording(false);
-      };
-      
-      websocket.onclose = () => {
-        console.log('WebSocket disconnected');
-        setIsRecording(false);
-      };
-      
-      setWs(websocket);
+      }
     }
   };
 
