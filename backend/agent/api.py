@@ -13,6 +13,7 @@ import os
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
 from elevenlabs.client import ElevenLabs as ElevenLabsClient
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -54,6 +55,7 @@ def get_elevenlabs_client():
         if not api_key:
             raise ValueError("ELEVENLABS_API_KEY not found in environment variables")
         elevenlabs_client = ElevenLabsClient(api_key=api_key)
+        print("[DEBUG] ElevenLabs client initialized")
     return elevenlabs_client
 
 
@@ -219,6 +221,9 @@ async def voice_chat(audio: UploadFile = File(...)):
     try:
         # Read audio file
         audio_bytes = await audio.read()
+        print(f"[DEBUG] /voice-chat received audio bytes length: {len(audio_bytes)}")
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded audio file is empty. Check client recording settings and mime type.")
         
         # Transcribe audio using ElevenLabs
         client = get_elevenlabs_client()
@@ -244,8 +249,9 @@ async def voice_chat(audio: UploadFile = File(...)):
             'success': True,
             'audio_available': True
         }
-        
     except Exception as e:
+        print("[ERROR] Exception in /voice-chat:")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Voice chat error: {str(e)}")
 
 
@@ -260,6 +266,9 @@ async def voice_chat_with_audio(audio: UploadFile = File(...), voice_id: Optiona
     try:
         # Read audio file
         audio_bytes = await audio.read()
+        print(f"[DEBUG] /voice-chat-with-audio received audio bytes length: {len(audio_bytes)}")
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded audio file is empty. Check client recording settings and mime type.")
         
         # Transcribe audio using ElevenLabs
         client = get_elevenlabs_client()
@@ -308,8 +317,9 @@ async def voice_chat_with_audio(audio: UploadFile = File(...), voice_id: Optiona
                 "X-User-Message": encoded_user_message
             }
         )
-        
     except Exception as e:
+        print("[ERROR] Exception in /voice-chat-with-audio:")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Voice chat with audio error: {str(e)}")
 
 

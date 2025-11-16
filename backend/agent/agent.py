@@ -6,8 +6,12 @@ meaningful conversation and personality understanding.
 
 import os
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+import re
 from datetime import datetime
+import asyncio
+
+
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -26,15 +30,16 @@ class CVManager:
     def __init__(self, cv_path: str = "CV.json"):
         self.cv_path = cv_path
         self._ensure_cv_exists()
+        # In-memory cache of personality data to avoid repeated file I/O
+        self._personality_cache: Dict[str, Any] = self._load_personality_from_disk()
     
     def _ensure_cv_exists(self):
         """Create CV.json if it doesn't exist."""
         if not os.path.exists(self.cv_path):
             with open(self.cv_path, 'w') as f:
                 json.dump({"personality": {}}, f, indent=2)
-    
-    def load_personality(self) -> Dict[str, Any]:
-        """Load personality data from CV.json."""
+
+    def _load_personality_from_disk(self) -> Dict[str, Any]:
         try:
             with open(self.cv_path, 'r') as f:
                 data = json.load(f)
@@ -42,25 +47,42 @@ class CVManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
     
+    def load_personality(self) -> Dict[str, Any]:
+        """Load personality data from CV.json."""
+        # Return cached copy to avoid file reads for each access
+        if self._personality_cache is None:
+            self._personality_cache = self._load_personality_from_disk()
+        return self._personality_cache
+    
     def update_personality(self, new_info: Dict[str, Any]) -> bool:
         """
         Update personality information only if there's new data.
         Returns True if update was made, False otherwise.
         """
-        current_personality = self.load_personality()
-        
-        # Check if there's actually new information
+        # If empty dict passed, clear personality
+        current_personality = self.load_personality() or {}
+
+        if new_info == {}:
+            if current_personality:
+                self._personality_cache = {}
+                with open(self.cv_path, 'w') as f:
+                    json.dump({"personality": {}}, f, indent=2)
+                return True
+            return False
+
+        # Merge new info; only write if changed
         has_new_info = False
         for key, value in new_info.items():
-            if key not in current_personality or current_personality[key] != value:
+            if key not in current_personality or current_personality.get(key) != value:
                 has_new_info = True
                 current_personality[key] = value
-        
+
         if has_new_info:
+            self._personality_cache = current_personality
             with open(self.cv_path, 'w') as f:
                 json.dump({"personality": current_personality}, f, indent=2)
             return True
-        
+
         return False
     
     def get_personality_summary(self) -> str:
@@ -102,10 +124,11 @@ class ElderSphereAgent:
         
         # Initialize the Gemini model
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             google_api_key=self.api_key,
             temperature=0.7,
-            convert_system_message_to_human=True
+            #convert_system_message_to_human=True
+            streaming=True,
         )
         
         # Initialize conversation memory using ChatMessageHistory
@@ -148,47 +171,8 @@ class ElderSphereAgent:
 
 Remember: Your goal is to make them feel comfortable, valued, and engaged in meaningful conversation. Every interaction should leave them feeling better than before."""
 
-    def _extract_personality_insights(self, conversation: str, response: str) -> Dict[str, Any]:
-        """
-        Use the LLM to extract personality insights from the conversation.
-        """
-        extraction_prompt = f"""Based on the following conversation, identify any NEW personality traits, interests, preferences, or characteristics about the person. Only extract clear, specific information.
-
-Conversation:
-User: {conversation}
-Assistant: {response}
-
-Known personality information:
-{self.cv_manager.get_personality_summary()}
-
-Extract ONLY NEW information not already recorded. Format as JSON with descriptive keys (e.g., "hobbies", "family_details", "preferences", "life_experiences", "emotional_traits", etc.).
-
-If there is no new personality information to extract, return an empty JSON object: {{}}.
-
-Return only valid JSON, nothing else."""
-
-        try:
-            extraction_response = self.llm.invoke([HumanMessage(content=extraction_prompt)])
-            
-            # Parse the JSON response
-            response_text = extraction_response.content.strip()
-            
-            # Remove markdown code blocks if present
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            
-            response_text = response_text.strip()
-            
-            personality_info = json.loads(response_text)
-            return personality_info if personality_info else {}
-            
-        except Exception as e:
-            print(f"Error extracting personality insights: {e}")
-            return {}
+    # NOTE: Removed separate extraction LLM call to reduce latency. Extraction is
+    # performed in the same model response as the agent reply (see `chat`).
     
     def chat(self, user_message: str) -> str:
         """
@@ -200,38 +184,70 @@ Return only valid JSON, nothing else."""
         Returns:
             The agent's response.
         """
-        # Get conversation history
-        chat_history = self.message_history.messages
-        
-        # Create the full prompt
-        messages = [
-            SystemMessage(content=self.system_prompt)
-        ]
-        
-        # Add chat history
-        messages.extend(chat_history)
-        
-        # Add current user message
+        # Get conversation history and trim to recent messages to reduce tokens
+        chat_history: List[Any] = self.message_history.messages or []
+        recent_history = chat_history[-12:]
+
+        # We instruct the model to return the natural reply followed by a JSON
+        # object (between markers) that contains ONLY NEW personality info.
+        PERSONA_START = "<<<PERSONALITY_JSON_START>>>"
+        PERSONA_END = "<<<PERSONALITY_JSON_END>>>"
+
+        instruction_for_extraction = (
+            "\n\nAfter you produce a natural, empathetic reply to the user, append a JSON "
+            "object containing ONLY NEW personality information (traits, hobbies, preferences, "
+            "etc.) that you can infer from this interaction. Place that JSON between the "
+            "markers:\n"
+            f"{PERSONA_START}\n{{}}\n{PERSONA_END}\n"
+            "If there is no new information, put an empty JSON object between the markers. "
+            "Do not include any extra text inside the markers — only a valid JSON object."
+        )
+
+        messages: List[Any] = [SystemMessage(content=self.system_prompt + instruction_for_extraction)]
+        messages.extend(recent_history)
         messages.append(HumanMessage(content=user_message))
-        
-        # Get response from LLM
+
+        # Single LLM call: returns both human-friendly reply and JSON extraction
         response = self.llm.invoke(messages)
-        agent_response = response.content
+        full_response = response.content
         
-        # Update message history
+        # response = await self.llm.agenerate([messages])
+        # full_response = response.generations[0].message.content
+
+
+        # Try to extract the JSON section between the markers
+        personality_insights: Dict[str, Any] = {}
+        try:
+            start_idx = full_response.find(PERSONA_START)
+            end_idx = full_response.find(PERSONA_END)
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_text = full_response[start_idx + len(PERSONA_START):end_idx].strip()
+                # Remove any code fences
+                json_text = re.sub(r"^```json\\n|```$", "", json_text).strip()
+                if json_text:
+                    personality_insights = json.loads(json_text)
+
+                # The visible reply should exclude the JSON markers and content
+                visible_reply = (full_response[:start_idx] + full_response[end_idx + len(PERSONA_END):]).strip()
+            else:
+                # No markers found: treat entire content as visible reply
+                visible_reply = full_response.strip()
+        except Exception as e:
+            print(f"[WARN] Failed to parse personality JSON: {e}")
+            visible_reply = full_response.strip()
+
+        # Update message history with the user message and visible assistant reply
         self.message_history.add_user_message(user_message)
-        self.message_history.add_ai_message(agent_response)
-        
-        # Extract and update personality insights
-        personality_insights = self._extract_personality_insights(user_message, agent_response)
+        self.message_history.add_ai_message(visible_reply)
+
+        # If new personality info was found, update CV and refresh system prompt
         if personality_insights:
             updated = self.cv_manager.update_personality(personality_insights)
             if updated:
                 print(f"[DEBUG] Updated CV with new personality insights: {list(personality_insights.keys())}")
-                # Refresh system prompt with new personality info
                 self.system_prompt = self._create_system_prompt()
-        
-        return agent_response
+
+        return visible_reply
     
     def get_personality_profile(self) -> Dict[str, Any]:
         """Get the current personality profile."""
