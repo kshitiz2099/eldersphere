@@ -362,72 +362,75 @@ async def voice_chat_with_audio_ws(websocket: WebSocket):
     """
     WebSocket voice chat endpoint with audio response.
     
-    Client sends audio bytes, receives transcription, text response, and audio response.
-    Connection opens and closes based on client requests.
+    Handles continuous conversation - keeps connection open until client disconnects.
     """
     await websocket.accept()
     
     try:
-        # Receive audio bytes from client
-        audio_bytes = await websocket.receive_bytes()
-        print(f"[DEBUG] WebSocket received audio bytes length: {len(audio_bytes)}")
-        
-        if not audio_bytes:
-            await websocket.send_json({"type": "error", "message": "No audio data received"})
-            await websocket.close()
-            return
-        
-        # Transcribe audio using ElevenLabs
-        client = get_elevenlabs_client()
-        
-        result = client.speech_to_text.convert(
-            file=audio_bytes,
-            model_id='scribe_v1',
-            file_format='other'  # Let ElevenLabs auto-detect the format
-        )
-        
-        # Extract text from result
-        user_message = result.text if hasattr(result, 'text') else str(result)
-        
-        if not user_message.strip():
-            await websocket.send_json({"type": "error", "message": "Could not transcribe audio"})
-            await websocket.close()
-            return
-        
-        # Send transcription to client
-        await websocket.send_json({"type": "transcription", "text": user_message})
-        
-        # Get agent response
-        agent_instance = get_agent()
-        response_text = agent_instance.chat(user_message)
-        
-        # Send text response to client
-        await websocket.send_json({"type": "response", "text": response_text})
-        
-        # Convert response to speech
-        audio_response = client.text_to_speech.convert(
-            voice_id="21m00Tcm4TlvDq8ikWAM",
-            text=response_text,
-            model_id="eleven_multilingual_v2"
-        )
-        
-        # Stream audio response to client
-        for chunk in audio_response:
-            if chunk:
-                await websocket.send_bytes(chunk)
-        
-        # Send completion signal
-        await websocket.send_json({"type": "complete"})
-        await websocket.close()
+        while True:
+            # Receive audio bytes from client
+            audio_bytes = await websocket.receive_bytes()
+            print(f"[DEBUG] WebSocket received audio bytes length: {len(audio_bytes)}")
+            
+            if not audio_bytes:
+                await websocket.send_json({"type": "error", "message": "No audio data received"})
+                continue
+            
+            # Transcribe audio using ElevenLabs
+            client = get_elevenlabs_client()
+            
+            result = client.speech_to_text.convert(
+                file=audio_bytes,
+                model_id='scribe_v1',
+                file_format='other'  # Let ElevenLabs auto-detect the format
+            )
+            
+            # Extract text from result
+            user_message = result.text if hasattr(result, 'text') else str(result)
+            
+            if not user_message.strip():
+                await websocket.send_json({"type": "error", "message": "Could not transcribe audio"})
+                continue
+            
+            # Send transcription to client
+            await websocket.send_json({"type": "transcription", "text": user_message})
+            
+            # Get agent response
+            agent_instance = get_agent()
+            response_text = agent_instance.chat(user_message)
+            
+            # Send text response to client
+            await websocket.send_json({"type": "response", "text": response_text})
+            
+            # Convert response to speech with style interpretation
+            audio_response = client.text_to_speech.convert(
+                voice_id="21m00Tcm4TlvDq8ikWAM",
+                text=response_text,
+                model_id="eleven_turbo_v2_5",
+                voice_settings={
+                    "stability": 0.5,
+                    "similarity_boost": 0.75,
+                    "style": 0.5,
+                    "use_speaker_boost": True
+                },
+                # text_format = "ssml"
+            )
+            
+            # Stream audio response to client
+            for chunk in audio_response:
+                if chunk:
+                    await websocket.send_bytes(chunk)
+            
+            # Send completion signal (but don't close connection)
+            await websocket.send_json({"type": "complete"})
         
     except WebSocketDisconnect:
-        print("[DEBUG] WebSocket disconnected")
+        print("[DEBUG] WebSocket disconnected by client")
     except Exception as e:
         print("[ERROR] Exception in WebSocket voice-chat-with-audio:")
         traceback.print_exc()
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
-            await websocket.close()
         except:
             pass
 

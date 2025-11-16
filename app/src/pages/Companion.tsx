@@ -15,10 +15,12 @@ const Companion = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   
+  const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioChunksQueueRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ const Companion = () => {
 
   const handleMic = async () => {
     if (isRecording) {
-      // Stop recording manually
+      // Stop recording manually and close WebSocket
       setIsRecording(false);
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -75,37 +77,24 @@ const Companion = () => {
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     } else {
       // Start recording
       setIsRecording(true);
       audioChunksRef.current = [];
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        mediaRecorderRef.current = mediaRecorder;
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = async () => {
-          setIsRecording(false);
-          setIsTyping(true);
-          
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          
-          // Send to backend and get response
+        // Create persistent WebSocket connection
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
           const ws = new WebSocket('ws://localhost:8000/ws/voice-chat-with-audio');
-          const audioChunks: Blob[] = [];
-          
-          ws.onopen = async () => {
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            ws.send(arrayBuffer);
-          };
+          wsRef.current = ws;
 
           ws.onmessage = async (event) => {
             if (typeof event.data === 'string') {
@@ -130,9 +119,9 @@ const Companion = () => {
                 setIsTyping(false);
               } else if (message.type === 'complete') {
                 // All audio received, play it back
-                if (audioChunks.length > 0) {
+                if (audioChunksQueueRef.current.length > 0) {
                   setIsPlaying(true);
-                  const fullAudio = new Blob(audioChunks, { type: 'audio/mpeg' });
+                  const fullAudio = new Blob(audioChunksQueueRef.current, { type: 'audio/mpeg' });
                   const audioUrl = URL.createObjectURL(fullAudio);
                   const audio = new Audio(audioUrl);
                   audio.playbackRate = 1.0;
@@ -141,12 +130,13 @@ const Companion = () => {
                     setIsPlaying(false);
                   };
                   audio.play().catch(console.error);
+                  audioChunksQueueRef.current = [];
                 }
-                ws.close();
+                // Don't close WebSocket - keep it open for next message
               }
             } else {
               // Collect audio chunks
-              audioChunks.push(new Blob([event.data], { type: 'audio/mpeg' }));
+              audioChunksQueueRef.current.push(new Blob([event.data], { type: 'audio/mpeg' }));
             }
           };
 
@@ -155,9 +145,47 @@ const Companion = () => {
             setIsPlaying(false);
           };
 
-          // Stop stream
-          stream.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
+          ws.onclose = () => {
+            setIsRecording(false);
+          };
+
+          // Wait for WebSocket to open
+          await new Promise((resolve) => {
+            ws.onopen = resolve;
+          });
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          audioChunksRef.current = [];
+          
+          // Send to WebSocket if open
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            setIsTyping(true);
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            wsRef.current.send(arrayBuffer);
+            
+            // Wait a bit for the response to complete, then restart recording
+            // This allows the silence timer to start fresh
+            setTimeout(() => {
+              if (wsRef.current?.readyState === WebSocket.OPEN && streamRef.current) {
+                audioChunksRef.current = [];
+                mediaRecorder.start();
+                console.log('[DEBUG] Restarted recording after response');
+              }
+            }, 1000);
+          }
         };
 
         // Start recording
@@ -174,13 +202,14 @@ const Companion = () => {
         let hasSpoken = false;
         
         const checkAudio = () => {
-          if (mediaRecorder.state !== 'recording') return;
+          // Continue checking audio as long as WebSocket is open
+          if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
           
           analyser.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
           
           // If actual speech detected (higher threshold to ignore background noise)
-          if (average > 60) {
+          if (average > 60 && mediaRecorder.state === 'recording') {
             hasSpoken = true;
             // Clear existing timer and start a new one
             if (silenceTimerRef.current) {
