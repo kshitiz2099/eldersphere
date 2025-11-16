@@ -171,32 +171,31 @@ const Companion = () => {
         source.connect(analyser);
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let hasSpoken = false;
         
-        const resetTimer = () => {
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-          }
-          silenceTimerRef.current = setTimeout(() => {
-            if (mediaRecorder.state === 'recording') {
-              mediaRecorder.stop();
-            }
-          }, 3000);
-        };
-
         const checkAudio = () => {
           if (mediaRecorder.state !== 'recording') return;
           
           analyser.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
           
-          if (average > 10) {
-            resetTimer();
+          // If actual speech detected (higher threshold to ignore background noise)
+          if (average > 60) {
+            hasSpoken = true;
+            // Clear existing timer and start a new one
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+            }
+            silenceTimerRef.current = setTimeout(() => {
+              if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+              }
+            }, 3000);
           }
           
           requestAnimationFrame(checkAudio);
         };
 
-        resetTimer();
         checkAudio();
       } catch (error) {
         console.error('Error accessing microphone:', error);
