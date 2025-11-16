@@ -12,6 +12,8 @@ const Companion = () => {
   const { companionMessages, addCompanionMessage, companionTags, addCompanionTags, userProfile } = useApp();
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [ws, setWs] = useState<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,9 +61,39 @@ const Companion = () => {
   };
 
   const handleMic = () => {
-    // Placeholder for voice input
-    const fakeMessage = "(Pretend this was transcribed speech)";
-    setInput(fakeMessage);
+    if (isRecording) {
+      // Stop recording and close WebSocket
+      if (ws) {
+        ws.close();
+        setWs(null);
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording and connect to WebSocket
+      const websocket = new WebSocket('ws://localhost:8000/ws/voice');
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected');
+        setIsRecording(true);
+      };
+      
+      websocket.onmessage = (event) => {
+        console.log('Received from server:', event.data);
+        // TODO: Handle incoming audio/text from server
+      };
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsRecording(false);
+      };
+      
+      websocket.onclose = () => {
+        console.log('WebSocket disconnected');
+        setIsRecording(false);
+      };
+      
+      setWs(websocket);
+    }
   };
 
   return (
@@ -159,11 +191,11 @@ const Companion = () => {
         <div className="flex gap-2">
           <Button
             size="lg"
-            variant="outline"
+            variant={isRecording ? "default" : "outline"}
             onClick={handleMic}
             className="rounded-2xl px-4"
           >
-            <Mic size={24} />
+            <Mic size={24} className={isRecording ? "animate-pulse" : ""} />
           </Button>
           <Input
             value={input}

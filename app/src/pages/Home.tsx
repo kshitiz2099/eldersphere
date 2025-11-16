@@ -5,7 +5,10 @@ import { CircleCard } from "@/components/CircleCard";
 import { useNavigate } from "react-router-dom";
 import { mockSuggestions } from "@/data/mockData";
 import { getSuggestedCircles } from "@/services/matchingService";
+import { getUserName } from "@/services/userService";
 import { BookOpen, Heart, Users, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CURRENT_USER_ID } from "@/config/constants";
 
 const iconMap = {
   BookOpen,
@@ -16,6 +19,11 @@ const iconMap = {
 const Home = () => {
   const { userProfile, calmAnimations } = useApp();
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    getUserName(CURRENT_USER_ID).then(setUserName);
+  }, []);
 
   if (!userProfile) {
     navigate("/onboarding");
@@ -32,7 +40,7 @@ const Home = () => {
         {/* Greeting Section */}
         <div className="text-center space-y-3">
           <h1 className="text-4xl font-bold text-foreground">
-            {greeting}, {userProfile.name} 🌤️
+            {greeting}, {userName || userProfile.name} 🌤️
           </h1>
           <p className="text-xl text-muted-foreground">
             Let's make today a little brighter.

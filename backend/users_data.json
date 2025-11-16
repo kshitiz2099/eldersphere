@@ -1,0 +1,122 @@
+[
+  {
+    "id": 0,
+    "name": "Alice Verhoeven",
+    "age": 67,
+    "food_preference": "Sushi",
+    "sport_preference": "Nordic walking",
+    "facts": [
+      "Volunteers at a local bird sanctuary.",
+      "Keeps a diary and hasn’t missed a day in 15 years."
+    ],
+    "groups": [0]
+  },
+  {
+    "id": 1,
+    "name": "Marko Jensen",
+    "age": 72,
+    "food_preference": "Lasagna",
+    "sport_preference": "Cycling",
+    "facts": [
+      "Still rides 40 km every Saturday.",
+      "Restores antique clocks as a hobby."
+    ],
+    "groups": [1, 2]
+  },
+  {
+    "id": 2,
+    "name": "Sophia Liu",
+    "age": 64,
+    "food_preference": "Ramen",
+    "sport_preference": "Swimming",
+    "facts": [
+      "Published a book of short stories at age 59.",
+      "Learned to paint with watercolors during retirement."
+    ],
+    "groups": [2]
+  },
+  {
+    "id": 3,
+    "name": "Jonas Klein",
+    "age": 75,
+    "food_preference": "Steak",
+    "sport_preference": "Lawn bowling",
+    "facts": [
+      "Can still solve a Rubik’s Cube in under a minute.",
+      "Worked as a photographer for 40 years."
+    ],
+    "groups": [0, 1]
+  },
+  {
+    "id": 4,
+    "name": "Emma van Dijk",
+    "age": 70,
+    "food_preference": "Falafel",
+    "sport_preference": "Jogging (slow pace)",
+    "facts": [
+      "Has never owned a smartphone.",
+      "Maintains a small rooftop vegetable garden."
+    ],
+    "groups": []
+  },
+  {
+    "id": 5,
+    "name": "Daniel Okafor",
+    "age": 66,
+    "food_preference": "Fried rice",
+    "sport_preference": "Table tennis",
+    "facts": [
+      "Plays piano for a community choir.",
+      "Once took a solo backpacking trip at age 62."
+    ],
+    "groups": [0, 5]
+  },
+  {
+    "id": 6,
+    "name": "Julia Romero",
+    "age": 69,
+    "food_preference": "Paella",
+    "sport_preference": "Yoga",
+    "facts": [
+      "Can recall every country she has visited (34 total).",
+      "Used to perform magic tricks at children’s hospitals."
+    ],
+    "groups": []
+  },
+  {
+    "id": 7,
+    "name": "Ivan Petrov",
+    "age": 73,
+    "food_preference": "Borscht",
+    "sport_preference": "Ice skating (slow laps)",
+    "facts": [
+      "Builds custom mechanical keyboards as a retirement hobby.",
+      "Keeps bees and produces his own honey."
+    ],
+    "groups": [1]
+  },
+  {
+    "id": 8,
+    "name": "Chloe Andersen",
+    "age": 62,
+    "food_preference": "Thai curry",
+    "sport_preference": "Rock climbing (indoor, easy routes)",
+    "facts": [
+      "Can still recite π to 150 digits.",
+      "Recently adopted an elderly rescue dog."
+    ],
+    "groups": []
+  },
+  {
+    "id": 9,
+    "name": "Matteo Ricci",
+    "age": 78,
+    "food_preference": "Pizza",
+    "sport_preference": "Tennis (doubles)",
+    "facts": [
+      "Builds handcrafted wooden chairs in his workshop.",
+      "Got lost in Tokyo in the 1980s during a business trip."
+    ],
+    "groups": [0, 1]
+  }
+]

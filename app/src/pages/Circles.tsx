@@ -4,11 +4,21 @@ import { CircleCard } from "@/components/CircleCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { getSuggestedCircles, getCirclesByCategory } from "@/services/matchingService";
+import { getUserGroups } from "@/services/userService";
 import { Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { group } from "console";
+import { CURRENT_USER_ID } from "@/config/constants";
 
 const Circles = () => {
   const { userProfile, calmAnimations } = useApp();
   const navigate = useNavigate();
+  const [userGroups, setUserGroups] = useState<any[]>([]);
+
+  useEffect(() => {
+    getUserGroups(CURRENT_USER_ID).then(groups => {setUserGroups(groups)});
+    console.log("User Groups:", userGroups);
+  }, []);
 
   if (!userProfile) return null;
 
@@ -43,6 +53,31 @@ const Circles = () => {
             </div>
           </Button>
         </div>
+
+        {/* My Groups */}
+        {userGroups.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold text-foreground">My Groups</h2>
+            <div className="space-y-4">
+              {userGroups.map((group) => (
+                <CircleCard
+                  key={group._id || group.id}
+                  circle={{
+                    id: (group._id || group.id).toString(),
+                    name: group.name,
+                    description: group.description || '',
+                    category: group.category || 'general',
+                    membersCount: group.membersCount || group.members?.length || 0,
+                    tags: group.tags || [],
+                    matchReason: group.matchReason || ''
+                  }}
+                  onSelect={() => navigate(`/circles/circle-${group.id}`, { state: { groupName: group.name, groupDescription: group.description } })}
+                  buttonText="Go to Chats"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Suggested for You */}
         <div className="space-y-4">

@@ -187,7 +187,15 @@ class MongoRepository:
     
     def get_group_chat_messages(self, group_id: int) -> List[Dict[str, Any]]:
         """Get all messages for a specific group."""
-        return list(self.group_chats.find({"group_id": group_id}).sort("timestamp", 1))
+        return list(self.group_chats.find({"id": group_id}).sort("timestamp", 1))
+    
+    def append_message_to_group(self, group_id: int, message: Dict[str, Any]) -> bool:
+        """Append a message to a group's messages array."""
+        result = self.group_chats.update_one(
+            {"_id": group_id},
+            {"$push": {"messages": message}}
+        )
+        return result.modified_count > 0
     
     def get_group_chat_by_id(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific group chat message by its ID."""
@@ -206,6 +214,10 @@ class MongoRepository:
         import json
         with open(json_file_path, 'r') as f:
             chats_data = json.load(f)
+        
+        for chat in chats_data:
+            if 'id' in chat:
+                chat['_id'] = int(chat['id'])
         
         self.group_chats.insert_many(chats_data)
     

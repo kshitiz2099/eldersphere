@@ -7,9 +7,10 @@ interface CircleCardProps {
   circle: Circle;
   onSelect?: () => void;
   showMatchReason?: boolean;
+  buttonText?: string;
 }
 
-export const CircleCard = ({ circle, onSelect, showMatchReason }: CircleCardProps) => {
+export const CircleCard = ({ circle, onSelect, showMatchReason, buttonText }: CircleCardProps) => {
   return (
     <div className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
       <div className="space-y-4">
@@ -50,7 +51,7 @@ export const CircleCard = ({ circle, onSelect, showMatchReason }: CircleCardProp
             size="lg"
             className="w-full text-lg h-14 rounded-xl"
           >
-            See details
+            {buttonText || "See details"}
           </Button>
         )}
       </div>

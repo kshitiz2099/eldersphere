@@ -1,51 +1,97 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mic, Send, ArrowLeft } from "lucide-react";
-import { mockCircles, mockCircleMessages } from "@/data/mockData";
 import { Message } from "@/types";
 import { useApp } from "@/contexts/AppContext";
+import { getGroupChats, getUserName, addMessageToGroup } from "@/services/userService";
+import { CURRENT_USER_ID } from "@/config/constants";
 
 const CircleChat = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userProfile } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [groupData, setGroupData] = useState<any>(null);
+  const [userName, setUserName] = useState<string>("");
   const [input, setInput] = useState("");
+  const [nextMessageId, setNextMessageId] = useState<number>(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const circle = mockCircles.find(c => c.id === id);
+  useEffect(() => {
+    getUserName(CURRENT_USER_ID).then(setUserName);
+  }, []);
 
   useEffect(() => {
-    if (id && mockCircleMessages[id]) {
-      setMessages(mockCircleMessages[id]);
+    if (id) {
+      const groupId = id.startsWith('circle-') ? id.replace('circle-', '') : id;
+      const { groupName, groupDescription } = location.state || {};
+      
+      setGroupData({
+        name: groupName || `Group ${groupId}`,
+        description: groupDescription || "Group chat",
+        tags: []
+      });
+      
+      getGroupChats(Number(groupId)).then((chatData: any) => {
+        console.log("Chat data received:", chatData);
+        const chatMessages = chatData.messages || [];
+        const formattedMessages: Message[] = chatMessages.map((msg: any) => ({
+          id: msg.id,
+          sender: msg.sender === CURRENT_USER_ID ? "user" : "other",
+          senderName: msg.senderName || "Unknown",
+          text: msg.text,
+          timestamp: msg.timestamp || new Date().toISOString()
+        }));
+        setMessages(formattedMessages);
+        
+        // Set next message ID
+        if (chatMessages.length > 0) {
+          const maxId = Math.max(...chatMessages.map((msg: any) => msg.id));
+          setNextMessageId(maxId + 1);
+        }
+      });
     }
-  }, [id]);
+  }, [id, location.state]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  if (!circle) {
-    navigate("/circles");
-    return null;
-  }
+  const handleSend = async () => {
+    if (!input.trim() || !id) return;
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      sender: "user",
-      senderName: userProfile?.name || "You",
-      text: input,
-      timestamp: new Date().toISOString(),
+    const groupId = id.startsWith('circle-') ? id.replace('circle-', '') : id;
+    const timestamp = new Date().toISOString();
+    
+    const messageData = {
+      id: nextMessageId,
+      sender: CURRENT_USER_ID,
+      senderName: userName || "You",
+      text: input.trim(),
+      timestamp: timestamp
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInput("");
+    // Send to backend
+    const success = await addMessageToGroup(Number(groupId), messageData);
+    
+    if (success) {
+      // Add to UI
+      const newMessage: Message = {
+        id: nextMessageId,
+        sender: "user",
+        senderName: userName || "You",
+        text: input.trim(),
+        timestamp: timestamp,
+      };
+
+      setMessages(prev => [...prev, newMessage]);
+      setNextMessageId(prev => prev + 1);
+      setInput("");
+    }
   };
 
   const handleMic = () => {
@@ -67,23 +113,28 @@ const CircleChat = () => {
               <ArrowLeft size={24} />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{circle.name}</h1>
-              <p className="text-sm text-muted-foreground">{circle.description}</p>
+              <h1 className="text-2xl font-bold text-foreground">
+                {groupData?.name || "Group Chat"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {groupData?.description || ""}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Pinned Welcome Message */}
-      <div className="max-w-2xl mx-auto w-full px-4 py-4">
-        <div className="bg-secondary/30 rounded-2xl p-4 border border-secondary">
-          <p className="text-base text-foreground">
-            <span className="font-semibold">{userProfile?.name}, welcome! </span>
-            This group loves gentle daily conversation and {circle.tags.slice(0, 2).join(" and ")}. 
-            Say hello when you're ready — it's okay to just listen too.
-          </p>
+      {groupData && (
+        <div className="max-w-2xl mx-auto w-full px-4 py-4">
+          <div className="bg-secondary/30 rounded-2xl p-4 border border-secondary">
+            <p className="text-base text-foreground">
+              <span className="font-semibold">{userName}, welcome! </span>
+              Say hello when you're ready — it's okay to just listen too.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 space-y-4">
