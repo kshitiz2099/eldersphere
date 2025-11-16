@@ -1,0 +1,21 @@
+INFO:     Started server process [5784]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+🚀 Starting ElderSphere WebSocket API Server...
+📡 WebSocket endpoint: ws://localhost:8000/ws/voice-chat
+🏥 Health check: http://localhost:8000/health
+
+⚡ ULTRA-LOW LATENCY MODE ENABLED ⚡
+   • ElevenLabs WebSocket TTS
+   • Flash v2.5 model (75ms inference)
+   • Bidirectional streaming
+   • Expected TTFB: 150-200ms
+
+INFO:     127.0.0.1:49514 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49537 - "GET /voice_websocket_demo.html HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49537 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49591 - "WebSocket /ws/voice-chat?voice_id=21m00Tcm4TlvDq8ikWAM" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49683 - "WebSocket /ws/voice-chat?voice_id=21m00Tcm4TlvDq8ikWAM" [accepted]
+INFO:     connection open

@@ -102,7 +102,7 @@ class ElderSphereAgent:
         
         # Initialize the Gemini model
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             google_api_key=self.api_key,
             temperature=0.7,
             convert_system_message_to_human=True
@@ -142,7 +142,8 @@ class ElderSphereAgent:
 - Avoid being clinical or overly formal
 - Use appropriate humor when suitable
 - Acknowledge and validate their feelings
-
+- Keep it concise and compact
+- No more than 2-3 sentences per response
 **Current Known Personality Information**:
 {personality_summary}
 
@@ -232,6 +233,50 @@ Return only valid JSON, nothing else."""
                 self.system_prompt = self._create_system_prompt()
         
         return agent_response
+    
+    def chat_stream(self, user_message: str):
+        """
+        Process a user message and stream the agent's response as it's generated.
+        
+        Args:
+            user_message: The user's message.
+            
+        Yields:
+            Text chunks as they arrive from the LLM.
+        """
+        # Get conversation history
+        chat_history = self.message_history.messages
+        
+        # Create the full prompt
+        messages = [
+            SystemMessage(content=self.system_prompt)
+        ]
+        
+        # Add chat history
+        messages.extend(chat_history)
+        
+        # Add current user message
+        messages.append(HumanMessage(content=user_message))
+        
+        # Stream response from LLM
+        full_response = ""
+        for chunk in self.llm.stream(messages):
+            if chunk.content:
+                full_response += chunk.content
+                yield chunk.content
+        
+        # Update message history with complete response
+        self.message_history.add_user_message(user_message)
+        self.message_history.add_ai_message(full_response)
+        
+        # Extract and update personality insights
+        personality_insights = self._extract_personality_insights(user_message, full_response)
+        if personality_insights:
+            updated = self.cv_manager.update_personality(personality_insights)
+            if updated:
+                print(f"[DEBUG] Updated CV with new personality insights: {list(personality_insights.keys())}")
+                # Refresh system prompt with new personality info
+                self.system_prompt = self._create_system_prompt()
     
     def get_personality_profile(self) -> Dict[str, Any]:
         """Get the current personality profile."""

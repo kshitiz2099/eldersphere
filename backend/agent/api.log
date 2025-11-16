@@ -1,0 +1,67 @@
+INFO:     Will watch for changes in these directories: ['/Users/max/Junction/eldersphere/backend/agent']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [14918] using WatchFiles
+Starting ElderSphere Agent API Server (FastAPI)...
+Server running on http://localhost:8000
+
+Available endpoints:
+  GET  /health - Health check
+  POST /chat - Send a message (text)
+  POST /voice-chat - Send audio, get text response
+  POST /voice-chat-with-audio - Send audio, get audio response
+  POST /text-to-speech - Convert text to speech
+  GET  /voices - Get available ElevenLabs voices
+  GET  /personality - Get personality profile
+  POST /reset - Reset conversation
+  POST /reset-all - Reset everything
+  GET  /greeting - Get initial greeting
+  GET  /docs - Interactive API documentation (Swagger UI)
+  GET  /redoc - Alternative API documentation
+
+Press Ctrl+C to stop the server
+
+INFO:     Started server process [14921]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:50207 - "GET /health HTTP/1.1" 200 OK
+[DEBUG] Updated CV with new personality insights: ['communication_approach']
+INFO:     127.0.0.1:50230 - "GET /greeting HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50238 - "POST /voice-chat-with-audio?voice_id=21m00Tcm4TlvDq8ikWAM HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'sentence_buffer.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [14921]
+INFO:     Started server process [15553]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'streaming_pipeline.py', 'streaming_agent.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [15553]
+INFO:     Started server process [15593]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'test_streaming.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [15593]
+WARNING:  WatchFiles detected changes in 'test_streaming.py'. Reloading...
+INFO:     Started server process [16862]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [16862]
+INFO:     Started server process [17338]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [17338]
+INFO:     Stopping reloader process [14918]

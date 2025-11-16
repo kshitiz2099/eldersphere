@@ -1,0 +1,5 @@
+::1 - - [16/Nov/2025 04:22:14] "GET /voice_websocket_demo.html HTTP/1.1" 304 -
+::1 - - [16/Nov/2025 04:22:15] code 404, message File not found
+::1 - - [16/Nov/2025 04:22:15] "GET /favicon.ico HTTP/1.1" 404 -
+::1 - - [16/Nov/2025 04:22:27] code 404, message File not found
+::1 - - [16/Nov/2025 04:22:27] "GET /favicon.ico HTTP/1.1" 404 -
