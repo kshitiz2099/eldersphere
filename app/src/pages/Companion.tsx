@@ -6,15 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Mic, Send } from "lucide-react";
 import { generateCompanionResponse } from "@/services/companionService";
-import { Message } from "@/types";
+import type { Message } from "@/types/index";
 
 const Companion = () => {
   const { companionMessages, addCompanionMessage, companionTags, addCompanionTags, userProfile } = useApp();
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,56 +67,137 @@ const Companion = () => {
 
   const handleMic = async () => {
     if (isRecording) {
-      // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      // Stop recording manually
+      setIsRecording(false);
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
-      if (ws) {
-        ws.close();
-        setWs(null);
-      }
-      setIsRecording(false);
     } else {
-      // Start recording and connect to WebSocket
+      // Start recording
+      setIsRecording(true);
+      audioChunksRef.current = [];
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const websocket = new WebSocket('ws://localhost:8000/ws/voice');
-        
-        websocket.onopen = () => {
-          console.log('WebSocket connected');
-          setIsRecording(true);
+        streamRef.current = stream;
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          setIsRecording(false);
+          setIsTyping(true);
           
-          // Start recording audio
-          const mediaRecorder = new MediaRecorder(stream);
-          mediaRecorderRef.current = mediaRecorder;
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           
-          mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
-              websocket.send(event.data);
+          // Send to backend and get response
+          const ws = new WebSocket('ws://localhost:8000/ws/voice-chat-with-audio');
+          const audioChunks: Blob[] = [];
+          
+          ws.onopen = async () => {
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            ws.send(arrayBuffer);
+          };
+
+          ws.onmessage = async (event) => {
+            if (typeof event.data === 'string') {
+              const message = JSON.parse(event.data);
+              
+              if (message.type === 'transcription') {
+                const userMessage: Message = {
+                  id: `msg-${Date.now()}`,
+                  sender: "user",
+                  text: message.text,
+                  timestamp: new Date().toISOString(),
+                };
+                addCompanionMessage(userMessage);
+              } else if (message.type === 'response') {
+                const aiMessage: Message = {
+                  id: `msg-${Date.now()}-ai`,
+                  sender: "ai",
+                  text: message.text,
+                  timestamp: new Date().toISOString(),
+                };
+                addCompanionMessage(aiMessage);
+                setIsTyping(false);
+              } else if (message.type === 'complete') {
+                // All audio received, play it back
+                if (audioChunks.length > 0) {
+                  setIsPlaying(true);
+                  const fullAudio = new Blob(audioChunks, { type: 'audio/mpeg' });
+                  const audioUrl = URL.createObjectURL(fullAudio);
+                  const audio = new Audio(audioUrl);
+                  audio.playbackRate = 1.0;
+                  audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    setIsPlaying(false);
+                  };
+                  audio.play().catch(console.error);
+                }
+                ws.close();
+              }
+            } else {
+              // Collect audio chunks
+              audioChunks.push(new Blob([event.data], { type: 'audio/mpeg' }));
             }
           };
+
+          ws.onerror = () => {
+            setIsTyping(false);
+            setIsPlaying(false);
+          };
+
+          // Stop stream
+          stream.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        };
+
+        // Start recording
+        mediaRecorder.start();
+
+        // Silence detection
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        const resetTimer = () => {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+          }
+          silenceTimerRef.current = setTimeout(() => {
+            if (mediaRecorder.state === 'recording') {
+              mediaRecorder.stop();
+            }
+          }, 3000);
+        };
+
+        const checkAudio = () => {
+          if (mediaRecorder.state !== 'recording') return;
           
-          mediaRecorder.start(100); // Send data every 100ms
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          
+          if (average > 10) {
+            resetTimer();
+          }
+          
+          requestAnimationFrame(checkAudio);
         };
-        
-        websocket.onmessage = (event) => {
-          console.log('Received from server:', event.data);
-          // TODO: Handle incoming audio/text from server
-        };
-        
-        websocket.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setIsRecording(false);
-          stream.getTracks().forEach(track => track.stop());
-        };
-        
-        websocket.onclose = () => {
-          console.log('WebSocket disconnected');
-          setIsRecording(false);
-          stream.getTracks().forEach(track => track.stop());
-        };
-        
-        setWs(websocket);
+
+        resetTimer();
+        checkAudio();
       } catch (error) {
         console.error('Error accessing microphone:', error);
         setIsRecording(false);
@@ -215,23 +300,25 @@ const Companion = () => {
         <div className="flex gap-2">
           <Button
             size="lg"
-            variant={isRecording ? "default" : "outline"}
+            variant={isRecording || isPlaying ? "default" : "outline"}
             onClick={handleMic}
+            disabled={isPlaying}
             className="rounded-2xl px-4"
           >
-            <Mic size={24} className={isRecording ? "animate-pulse" : ""} />
+            <Mic size={24} className={isRecording || isPlaying ? "animate-pulse" : ""} />
           </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Type your message..."
+            placeholder={isRecording ? "Recording..." : isPlaying ? "Playing response..." : "Type your message..."}
             className="text-lg h-14 rounded-2xl"
+            disabled={isRecording || isPlaying}
           />
           <Button
             size="lg"
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isRecording || isPlaying}
             className="rounded-2xl px-6"
           >
             <Send size={24} />
