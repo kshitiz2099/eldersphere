@@ -91,7 +91,7 @@
 //           <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
 //             <h2 className="text-xl font-semibold">Privacy</h2>
 //             <p className="text-base text-muted-foreground leading-relaxed">
-//               ElderSphere explains why you were matched to each Circle based on your interests 
+//               Narrio explains why you were matched to each Circle based on your interests 
 //               and personality. You always choose what to share in conversations. Your data stays 
 //               private and is used only to help you connect with the right communities.
 //             </p>
@@ -99,7 +99,7 @@
 
 //           {/* About */}
 //           <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
-//             <h2 className="text-xl font-semibold">About ElderSphere</h2>
+//             <h2 className="text-xl font-semibold">About Narrio</h2>
 //             <p className="text-base text-muted-foreground leading-relaxed">
 //               A gentle space for connection, conversation, and community. Built with care for 
 //               older adults seeking meaningful relationships.

@@ -58,7 +58,7 @@ const Home = () => {
           >
             <div className="flex flex-col items-center gap-2">
               <Sparkles size={36} />
-              <span>Talk to<br />ElderSphere</span>
+              <span>Talk to<br />Narrio</span>
             </div>
           </Button>
         </div>

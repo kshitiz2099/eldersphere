@@ -62,7 +62,7 @@ const CirclesRoulette = () => {
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-foreground">Find Your People</h1>
             <p className="text-xl text-muted-foreground">
-              Tap to let ElderSphere pick a Circle that fits you right now.
+              Tap to let Narrio pick a Circle that fits you right now.
             </p>
           </div>
           

@@ -1,4 +1,4 @@
-# ElderSphere Companion Agent - Project Summary
+# Narrio Companion Agent - Project Summary
 
 ## 🎯 Overview
 
@@ -62,7 +62,7 @@ backend/agent/
          │
          ▼
 ┌─────────────────┐
-│  ElderSphere    │
+│  Narrio    │
 │     Agent       │
 │  ┌───────────┐  │
 │  │ LangChain │  │
@@ -114,9 +114,9 @@ python api.py
 
 ### Command Line
 ```python
-from agent import ElderSphereAgent
+from agent import NarrioAgent
 
-agent = ElderSphereAgent()
+agent = NarrioAgent()
 response = agent.chat("I love gardening!")
 print(response)
 
@@ -197,7 +197,7 @@ console.log(data.response);
 - Detects new information
 - Prevents redundant updates
 
-### ElderSphereAgent
+### NarrioAgent
 - Main agent class
 - Manages conversation flow
 - Integrates LangChain components
@@ -308,7 +308,7 @@ Modify extraction prompt in `_extract_personality_insights()`
 - Free tier has rate limits (60 req/min)
 - CV updates happen asynchronously after responses
 
-## 🤝 Integration with ElderSphere App
+## 🤝 Integration with Narrio App
 
 The agent is designed to integrate with the frontend React app:
 
@@ -339,4 +339,4 @@ The agent is designed to integrate with the frontend React app:
 
 ---
 
-**Created for ElderSphere** - Improving elderly wellbeing through AI companionship
+**Created for Narrio** - Improving elderly wellbeing through AI companionship

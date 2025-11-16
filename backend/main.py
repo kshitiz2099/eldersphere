@@ -5,7 +5,7 @@ from endpoints.voice_endpoint import sio_app
 from repository.mongo_repository import MongoRepository
 import os
 
-app = FastAPI(title="ElderSphere API")
+app = FastAPI(title="Narrio API")
 
 # Initialize database with data files
 repo = MongoRepository()
@@ -29,7 +29,7 @@ app.include_router(test_router, prefix="/api", tags=["test"])
 
 @app.get("/")
 async def root():
-    return {"message": "ElderSphere API is running"}
+    return {"message": "Narrio API is running"}
 
 @app.get("/health")
 async def health():

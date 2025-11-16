@@ -1,4 +1,4 @@
-# ElderSphere Voice Pipeline Test
+# Narrio Voice Pipeline Test
 
 A complete real-time voice bot implementation with React frontend and FastAPI backend.
 

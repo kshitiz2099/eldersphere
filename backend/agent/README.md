@@ -1,4 +1,4 @@
-# ElderSphere Companion Agent
+# Narrio Companion Agent
 
 A psychotherapist/companion agent powered by Google's Gemini API and LangChain, designed to improve elderly wellbeing through meaningful conversations.
 
@@ -49,10 +49,10 @@ Agent: I'm so sorry to hear you're feeling lonely. I'm here for you...
 ### Programmatic Usage
 
 ```python
-from agent import ElderSphereAgent
+from agent import NarrioAgent
 
 # Initialize the agent
-agent = ElderSphereAgent()
+agent = NarrioAgent()
 
 # Have a conversation
 response = agent.chat("Hello, I love gardening!")

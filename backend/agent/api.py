@@ -1,5 +1,5 @@
 """
-API wrapper for ElderSphere Agent.
+API wrapper for Narrio Agent.
 Provides a simple interface for frontend integration with voice support.
 """
 
@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
-from agent import ElderSphereAgent
+from agent import NarrioAgent
 import os
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
@@ -22,7 +22,7 @@ load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="ElderSphere Companion Agent API",
+    title="Narrio Companion Agent API",
     description="AI companion/psychotherapist for elderly wellbeing",
     version="1.0.0"
 )
@@ -53,7 +53,7 @@ def get_agent():
     """Get or create the agent instance."""
     global agent
     if agent is None:
-        agent = ElderSphereAgent()
+        agent = NarrioAgent()
     return agent
 
 
@@ -202,7 +202,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         'status': 'healthy',
-        'service': 'ElderSphere Companion Agent'
+        'service': 'Narrio Companion Agent'
     }
 
 
@@ -522,7 +522,7 @@ if __name__ == '__main__':
         exit(1)
     
     # Run the server
-    print("Starting ElderSphere Agent API Server (FastAPI)...")
+    print("Starting Narrio Agent API Server (FastAPI)...")
     print("Server running on http://localhost:8000")
     print("\nAvailable endpoints:")
     print("  GET  /health - Health check")

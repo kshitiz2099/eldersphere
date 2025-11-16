@@ -1,4 +1,4 @@
-# Quick Start Guide - ElderSphere Companion Agent
+# Quick Start Guide - Narrio Companion Agent
 
 ## 🚀 Quick Setup (5 minutes)
 
@@ -116,7 +116,7 @@ When chatting with the agent:
 
 ## 📚 Next Steps
 
-- Integrate with the ElderSphere app UI
+- Integrate with the Narrio app UI
 - Add voice input/output capabilities
 - Implement daily check-in reminders
 - Add mood tracking over time

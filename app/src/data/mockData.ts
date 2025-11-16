@@ -129,7 +129,7 @@ export const mockCompanionMessages: Message[] = [
   {
     id: "ai-welcome",
     sender: "ai",
-    text: "Hello! I'm ElderSphere, your companion. I'm here to listen, learn about you, and help you connect with others. What would you like to talk about today?",
+    text: "Hello! I'm Narrio, your companion. I'm here to listen, learn about you, and help you connect with others. What would you like to talk about today?",
     timestamp: new Date(Date.now() - 86400000).toISOString(),
   },
 ];

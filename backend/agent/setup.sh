@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ElderSphere Agent Setup Script
+# Narrio Agent Setup Script
 
 echo "=========================================="
-echo "ElderSphere Companion Agent Setup"
+echo "Narrio Companion Agent Setup"
 echo "=========================================="
 echo ""
 

@@ -1,6 +1,6 @@
-# ElderSphere Agent API Documentation
+# Narrio Agent API Documentation
 
-RESTful API for the ElderSphere Companion Agent with voice capabilities powered by ElevenLabs.
+RESTful API for the Narrio Companion Agent with voice capabilities powered by ElevenLabs.
 
 ## Base URL
 ```
@@ -30,7 +30,7 @@ Check if the API server is running.
 ```json
 {
   "status": "healthy",
-  "service": "ElderSphere Companion Agent"
+  "service": "Narrio Companion Agent"
 }
 ```
 
@@ -651,7 +651,7 @@ Open the included demo page:
 ```bash
 # Make sure API is running (python api.py)
 # Then in another terminal:
-cd /Users/max/Junction/eldersphere/backend/agent
+cd /Users/max/Junction/narrio/backend/agent
 python -m http.server 8080
 ```
 

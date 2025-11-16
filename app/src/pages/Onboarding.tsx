@@ -61,7 +61,7 @@ const Onboarding = () => {
       <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-background to-secondary/20">
         <div className="text-center space-y-8 max-w-lg">
           <div className="space-y-4">
-            <h1 className="text-5xl font-bold text-foreground">Welcome to ElderSphere</h1>
+            <h1 className="text-5xl font-bold text-foreground">Welcome to Narrio</h1>
             <p className="text-xl text-muted-foreground">
               A gentle space for connection, conversation, and community.
             </p>

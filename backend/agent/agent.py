@@ -1,5 +1,5 @@
 """
-ElderSphere Companion Agent
+ Narrio Companion Agent
 A psychotherapist/companion agent designed to improve elderly wellbeing through
 meaningful conversation and personality understanding.
 """
@@ -101,7 +101,7 @@ class CVManager:
         return "\n".join(summary_parts)
 
 
-class ElderSphereAgent:
+class NarrioAgent:
     """
     A companion agent that engages elderly users in meaningful conversation
     to improve their wellbeing through active listening and therapeutic dialogue.
@@ -109,7 +109,7 @@ class ElderSphereAgent:
     
     def __init__(self, api_key: Optional[str] = None, cv_path: str = "CV.json"):
         """
-        Initialize the ElderSphere Agent.
+        Initialize the Narrio Agent.
         
         Args:
             api_key: Google API key for Gemini. If None, uses GOOGLE_API_KEY env var.
@@ -268,7 +268,7 @@ Remember: Your goal is to make them feel comfortable, valued, and engaged in mea
 def main():
     """Interactive CLI for testing the agent."""
     print("=" * 60)
-    print("ElderSphere Companion Agent")
+    print(" Narrio Companion Agent")
     print("=" * 60)
     print("Type 'quit' to exit")
     print("Type 'profile' to see personality profile")
@@ -278,7 +278,7 @@ def main():
     
     # Initialize agent
     try:
-        agent = ElderSphereAgent()
+        agent = NarrioAgent()
     except ValueError as e:
         print(f"Error: {e}")
         print("Please create a .env file with your GOOGLE_API_KEY")

@@ -11,7 +11,7 @@ class MongoRepository:
         if connection_string is None:
             connection_string = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
         self.client = MongoClient(connection_string)
-        self.db = self.client["eldersphere"]
+        self.db = self.client["narrio"]
         self.collection = self.db["test_records"]
         
         self.users = self.db['users']

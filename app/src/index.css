@@ -8,7 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* ElderSphere - Warm, Accessible Design System */
+    /* Narrio - Warm, Accessible Design System */
     --background: 32 33% 97%; /* Warm cream #FAF7F2 */
     --foreground: 210 20% 25%; /* Dark blue-gray for text */
 
