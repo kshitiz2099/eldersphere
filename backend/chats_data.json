@@ -1,0 +1,82 @@
+[
+  {
+    "id": 0,
+    "messages": [
+      {
+        "id": 1,
+        "sender": 0,
+        "senderName": "Aino",
+        "text": "Good morning everyone I hope you all slept well!",
+        "timestamp": "2025-02-14T08:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "sender": 3,
+        "senderName": "Kari",
+        "text": "Morning Aino! I tried a new soup recipe yesterday – barley and vegetables. Reminded me of my grandmother’s cooking.",
+        "timestamp": "2025-02-14T08:30:00.000Z"
+      },
+      {
+        "id": 3,
+        "sender": 5,
+        "senderName": "Helena",
+        "text": "That sounds wonderful, Kari. My mother used to make a similar soup whenever the weather turned cold.",
+        "timestamp": "2025-02-14T09:00:00.000Z"
+      },
+      {
+        "id": 4,
+        "sender": 9,
+        "senderName": "Leena",
+        "text": "Hello everyone, I'm Leena. I also love simple warm soups – they always remind me of family dinners.",
+        "timestamp": "2025-02-14T09:30:00.000Z"
+      },
+      {
+        "id": 5,
+        "sender": 0,
+        "senderName": "Aino",
+        "text": "Welcome, Leena Feel free to just listen or share a story whenever you feel ready.",
+        "timestamp": "2025-02-14T10:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "messages": [
+      {
+        "id": 1,
+        "sender": 1,
+        "senderName": "Esko",
+        "text": "The path by the lake was quite icy this morning. Please be careful if you go there.",
+        "timestamp": "2025-02-14T06:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "sender": 2,
+        "senderName": "Maija",
+        "text": "Thanks for the heads-up, Esko. I almost slipped near the wooden bridge yesterday.",
+        "timestamp": "2025-02-14T06:30:00.000Z"
+      },
+      {
+        "id": 3,
+        "sender": 0,
+        "senderName": "Aino",
+        "text": "Maybe we choose the park route this week instead? It’s flatter and better lit.",
+        "timestamp": "2025-02-14T07:00:00.000Z"
+      },
+      {
+        "id": 4,
+        "sender": 9,
+        "senderName": "Leena",
+        "text": "That sounds nice. I walk a bit slower but would love to join for the park route sometime.",
+        "timestamp": "2025-02-14T07:30:00.000Z"
+      },
+      {
+        "id": 5,
+        "sender": 1,
+        "senderName": "Esko",
+        "text": "You’re very welcome, Leena. We always walk at a gentle pace and take breaks.",
+        "timestamp": "2025-02-14T08:00:00.000Z"
+      }
+    ]
+  }
+]

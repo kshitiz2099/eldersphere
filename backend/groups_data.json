@@ -1,0 +1,62 @@
+[
+  {
+    "id": 0,
+    "name": "Tea & Stories",
+    "description": "Gentle daily conversations over virtual tea. Share life stories, listen, and connect.",
+    "tags": ["quiet", "stories", "online", "gentle"],
+    "membersCount": 4,
+    "category": "stories-conversation",
+    "matchReason": "You enjoy gentle conversation and listening to others' stories.",
+    "memberIds": [0, 3, 5, 9]
+  },
+  {
+    "id": 1,
+    "name": "Morning Walkers",
+    "description": "Share your morning walks, nature photos, and outdoor moments with fellow walkers.",
+    "tags": ["active", "outdoors", "morning", "photos"],
+    "membersCount": 4,
+    "category": "outdoors-active",
+    "matchReason": "You mentioned enjoying walks and connecting with nature.",
+    "memberIds": [1, 3, 7, 9]
+  },
+  {
+    "id": 2,
+    "name": "Knitting Corner",
+    "description": "Show off your latest projects, share patterns, and knit together virtually.",
+    "tags": ["creative", "knitting", "quiet", "crafts"],
+    "membersCount": 2,
+    "category": "quiet-creative",
+    "matchReason": "You love knitting and quiet creative time.",
+    "memberIds": [1, 2]
+  },
+  {
+    "id": 3,
+    "name": "Old Movies Club",
+    "description": "Weekly movie discussions, golden age cinema, and nostalgic film moments.",
+    "tags": ["movies", "nostalgia", "weekly", "conversation"],
+    "membersCount": 2,
+    "category": "stories-conversation",
+    "matchReason": "Perfect for storytellers who love classic cinema.",
+    "memberIds": [0, 3]
+  },
+  {
+    "id": 4,
+    "name": "Garden Friends",
+    "description": "Share gardening tips, plant photos, and seasonal growing advice.",
+    "tags": ["gardening", "outdoors", "seasonal", "photos"],
+    "membersCount": 0,
+    "category": "outdoors-active",
+    "matchReason": "You mentioned loving gardening and growing things.",
+    "memberIds": []
+  },
+  {
+    "id": 5,
+    "name": "Poetry & Reflection",
+    "description": "Share poems, reflections, and gentle thoughts in a supportive space.",
+    "tags": ["creative", "writing", "quiet", "gentle"],
+    "membersCount": 1,
+    "category": "quiet-creative",
+    "matchReason": "A peaceful space for creative, introverted souls.",
+    "memberIds": [5]
+  }
+]

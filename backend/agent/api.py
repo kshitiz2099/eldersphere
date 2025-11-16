@@ -3,7 +3,7 @@ API wrapper for ElderSphere Agent.
 Provides a simple interface for frontend integration with voice support.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
@@ -13,8 +13,10 @@ import os
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
 from elevenlabs.client import ElevenLabs as ElevenLabsClient
+from repository.mongo_repository import MongoRepository
+from services.user_service import get_user_name_by_id, get_user_groups, get_group_chats_with_names, add_message_to_group
+from services.voice_service import voice_service
 import traceback
-
 # Load environment variables
 load_dotenv()
 
@@ -23,6 +25,14 @@ app = FastAPI(
     title="ElderSphere Companion Agent API",
     description="AI companion/psychotherapist for elderly wellbeing",
     version="1.0.0"
+)
+
+# Initialize database
+mongo_repo = MongoRepository()
+mongo_repo.initialize_from_files(
+    users_file=os.path.join(os.path.dirname(__file__), '..', 'users_data.json'),
+    groups_file=os.path.join(os.path.dirname(__file__), '..', 'groups_data.json'),
+    chats_file=os.path.join(os.path.dirname(__file__), '..', 'chats_data.json')
 )
 
 # Enable CORS for frontend integration
@@ -93,6 +103,98 @@ class VoiceChatResponse(BaseModel):
     response: str
     success: bool
     audio_available: bool
+
+
+class UserNameResponse(BaseModel):
+    user_id: int
+    name: str
+    success: bool
+
+
+class UserGroupsResponse(BaseModel):
+    user_id: int
+    groups: list
+    success: bool
+
+
+class GroupChatsResponse(BaseModel):
+    group_id: int
+    chats: list
+    success: bool
+
+
+class AddMessageRequest(BaseModel):
+    id: int
+    sender: int
+    senderName: str
+    text: str
+    timestamp: str
+
+
+class AddMessageResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@app.get('/user/{user_id}/name', response_model=UserNameResponse)
+async def get_user_name(user_id: int):
+    """Get user name by ID."""
+    name = get_user_name_by_id(user_id)
+    return {
+        'user_id': user_id,
+        'name': name,
+        'success': bool(name)
+    }
+
+
+@app.get('/user/{user_id}/groups', response_model=UserGroupsResponse)
+async def get_user_groups_endpoint(user_id: int):
+    """Get all groups for a user."""
+    groups = get_user_groups(user_id)
+    return {
+        'user_id': user_id,
+        'groups': groups,
+        'success': True
+    }
+
+
+@app.get('/group/{group_id}/chats', response_model=GroupChatsResponse)
+async def get_group_chats_endpoint(group_id: int):
+    """Get all chats for a group with user names."""
+    chats = get_group_chats_with_names(group_id)
+    return {
+        'group_id': group_id,
+        'chats': chats,
+        'success': True
+    }
+
+
+@app.post('/group/{group_id}/message', response_model=AddMessageResponse)
+async def add_message_endpoint(group_id: int, request: AddMessageRequest):
+    """Add a new message to a group chat."""
+    message = {
+        'id': request.id,
+        'sender': request.sender,
+        'senderName': request.senderName,
+        'text': request.text,
+        'timestamp': request.timestamp
+    }
+    success = add_message_to_group(group_id, message)
+    return {
+        'success': success,
+        'message': 'Message added successfully' if success else 'Failed to add message'
+    }
+
+
+@app.websocket("/ws/voice")
+async def voice_websocket(websocket: WebSocket):
+    """WebSocket endpoint for real-time voice communication (STT-LLM-TTS)."""
+    client_id = f"client_{id(websocket)}"
+    await voice_service.connect(websocket, client_id)
+    try:
+        await voice_service.handle_audio_stream(websocket, client_id)
+    except WebSocketDisconnect:
+        voice_service.disconnect(client_id)
 
 
 @app.get('/health', response_model=HealthResponse)
